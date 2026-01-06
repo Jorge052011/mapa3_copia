@@ -1,0 +1,309 @@
+{% extends 'rutas/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <!-- ✅ CSRF TOKEN DISPONIBLE GLOBALMENTE PARA JS - DECLARADO UNA SOLA VEZ AL INICIO -->
+    <script>
+        window.CSRF_TOKEN = "{{ csrf_token }}";
+        console.log("CSRF_TOKEN inyectado:", window.CSRF_TOKEN);
+    </script>
+    
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+    </style>
+{% endblock extra_head %}
+
+{% block content %}
+    <h2>Mapa de Distribución</h2>
+
+    {# Mensajes de error #}
+    {% if error_message %}
+        <div class="alert-error">
+            <p><strong>Error:</strong> {{ error_message }}</p>
+        </div>
+    {% endif %}
+
+    {# FORM PARA AGREGAR PUNTO #}
+    <h3>Agregar punto de entrega</h3>
+    <form method="post" action="{% url 'agregar_punto' %}">
+        {% csrf_token %}
+        <label for="nombre">Nombre del Punto:</label><br>
+        <input type="text" id="nombre" name="nombre" required style="width: 100%; max-width: 400px;"><br><br>
+
+        <label for="direccion">Dirección:</label><br>
+        <input type="text" id="direccion" name="direccion" required style="width: 100%; max-width: 400px;"><br><br>
+
+        <button type="submit">Agregar Punto de Entrega</button>
+    </form>
+
+    <hr>
+
+    <h3>Puntos de Entrega actuales</h3>
+    <ul id="puntos-lista">
+        {% for punto in puntos_entrega %}
+            <li>
+                {{ punto.nombre }} - {{ punto.direccion }}
+                (Orden: {{ punto.orden_optimo|default:"N/A" }})
+                <button type="button"
+                        onclick="eliminarPunto('{% url 'borrar_punto' punto.id %}')">
+                    Eliminar
+                </button>
+            </li>
+        {% empty %}
+            <li>No hay puntos de entrega aún.</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    {# FORM PARA CONFIGURAR ORIGEN / DESTINO Y OPTIMIZAR RUTA #}
+    <h3>Configurar origen, destino y optimizar ruta</h3>
+
+    <form method="post" action="{% url 'optimizar_ruta' %}">
+        {% csrf_token %}
+
+        {# SELECCIÓN DE PUNTOS A INCLUIR EN LA OPTIMIZACIÓN #}
+        <h4>Puntos a incluir en la optimización</h4>
+        {% if puntos_entrega %}
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; margin-bottom: 15px;">
+                {% for punto in puntos_entrega %}
+                    {% with punto_id_str=punto.id|stringformat:"s" %}
+                        <label style="display:block; margin-bottom: 4px;">
+                            <input type="checkbox"
+                                   name="puntos_seleccionados"
+                                   value="{{ punto.id }}"
+                                   {% if selected_ids %}
+                                       {% if punto_id_str in selected_ids %}
+                                           checked
+                                       {% endif %}
+                                   {% else %}
+                                       checked
+                                   {% endif %}>
+                            {{ punto.nombre }} - {{ punto.direccion }}
+                            {% if punto.orden_optimo %}
+                                (Orden actual: {{ punto.orden_optimo }})
+                            {% endif %}
+                        </label>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+            <small>
+                (Por defecto todos están seleccionados; después de optimizar se mantienen
+                marcados solo los que se usaron en la última ruta.)
+            </small>
+        {% else %}
+            <p>No hay puntos de entrega para optimizar.</p>
+        {% endif %}
+
+        <hr>
+
+        <h4>Origen del recorrido</h4>
+
+        <label for="origen_predefinido">Selecciona origen:</label><br>
+        <select id="origen_predefinido" name="origen_predefinido"
+                onchange="toggleOrigenCustom()"
+                style="max-width: 400px; width: 100%;">
+            <option value="">— Selecciona una dirección —</option>
+
+            {# 3 DIRECCIONES PREDEFINIDAS #}
+            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
+                Bodega Laguna Grande (Av. Laguna Grande 1120, Casa 36, San Pedro de la Paz)
+            </option>
+            <option value="Díaz de Solís 1879, Concepción">
+                Bodega Díaz de Solís (Díaz de Solís 1879, Concepción)
+            </option>
+            <option value="Camino Los Carros 1955, Concepción">
+                Bodega Camino Los Carros (Camino Los Carros 1955, Concepción)
+            </option>
+
+            <option value="custom">Otra dirección...</option>
+        </select>
+        <br><br>
+
+        <div id="origen_custom_wrapper" style="display:none; margin-top: 5px;">
+            <label for="origen_custom">Dirección personalizada de origen:</label><br>
+            <input type="text"
+                   id="origen_custom"
+                   name="origen_custom"
+                   placeholder="Calle, número, comuna"
+                   style="width: 100%; max-width: 400px;"
+                   value="">
+            <br><br>
+        </div>
+
+        <h4>Fin del recorrido</h4>
+        <label for="destino_predefinido">Destino:</label><br>
+        <select id="destino_predefinido" name="destino_predefinido"
+                onchange="toggleDestinoCustom()"
+                style="max-width: 400px; width: 100%;">
+            <option value="same_origin">Volver a la misma bodega de origen</option>
+
+            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
+                Terminar en Bodega Laguna Grande
+            </option>
+            <option value="Díaz de Solís 1879, Concepción">
+                Terminar en Bodega Díaz de Solís
+            </option>
+            <option value="Camino Los Carros 1955, Concepción">
+                Terminar en Bodega Camino Los Carros
+            </option>
+
+            <option value="custom">Otra dirección...</option>
+        </select>
+
+        <br><br>
+
+        <div id="destino_custom_wrapper" style="display:none; margin-top: 5px;">
+            <label for="destino_custom">Dirección personalizada de destino:</label><br>
+            <input type="text"
+                   id="destino_custom"
+                   name="destino_custom"
+                   placeholder="Calle, número, comuna"
+                   style="width: 100%; max-width: 400px;"
+                   value="">
+            <br><br>
+        </div>
+
+        <h4>Rendimiento del vehículo</h4>
+        <label for="rendimiento_vehiculo">Rendimiento estimado (km/L):</label><br>
+        <input type="number"
+               id="rendimiento_vehiculo"
+               name="rendimiento_vehiculo"
+               step="0.1"
+               min="1"
+               style="max-width: 200px;"
+               value="{{ rendimiento_vehiculo|default:12 }}">
+        <small>(por defecto se usa 12 km/L, puedes ajustarlo según el vehículo)</small>
+
+        <br><br>
+
+        <h4>Precio de la bencina</h4>
+        <label for="precio_bencina">Precio de bencina (CLP/L):</label><br>
+        <input type="number"
+               id="precio_bencina"
+               name="precio_bencina"
+               step="1"
+               min="0"
+               style="max-width: 200px;"
+               value="{{ precio_bencina }}">
+        <small>(puedes modificarlo cuando cambie el precio; por defecto el valor es $1250)</small>
+
+        <br><br>
+
+        <button type="submit">Optimizar Ruta</button>
+    </form>
+
+    {# FORM PARA BORRAR TODOS LOS PUNTOS DE LA BD #}
+    <form method="post" action="{% url 'borrar_puntos' %}">
+        {% csrf_token %}
+        <button type="button" onclick="borrarTodosPuntos('{% url 'borrar_puntos' %}')">
+            Borrar todos los puntos de entrega
+        </button>
+    </form>
+
+    {# BOTÓN PARA LIMPIAR SOLO EL MAPA (RUTA + MARCADORES) #}
+    <button type="button" onclick="clearMap()" style="margin-top: 10px;">
+        Limpiar mapa (ruta y marcadores)
+    </button>
+
+    {# RESULTADOS DE LA OPTIMIZACIÓN #}
+    {% if total_distance_km is not None %}
+        <div class="alert-success">
+            {% if direccion_origen %}
+                <p><strong>Origen usado:</strong> {{ direccion_origen }}</p>
+            {% endif %}
+            {% if direccion_destino %}
+                <p><strong>Destino usado:</strong> {{ direccion_destino }}</p>
+            {% endif %}
+            {% if rendimiento_vehiculo %}
+                <p><strong>Rendimiento usado:</strong> {{ rendimiento_vehiculo }} km/L</p>
+            {% endif %}
+            <p><strong>Distancia Total Optimizada:</strong> {{ total_distance_km }} km</p>
+            <p><strong>Consumo Estimado de Bencina:</strong> {{ fuel_consumed_liters }} litros</p>
+            {% if fuel_cost_clp is not None %}
+                <p><strong>Precio usado:</strong> {{ precio_bencina }} CLP/L</p>
+                <p><strong>Costo Estimado del Viaje:</strong> {{ fuel_cost_clp|floatformat:0 }} CLP</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <hr>
+
+    <div id="map"></div>
+{% endblock content %}
+
+{% block extra_js %}
+    <!-- Variables para el mapa -->
+    <script>
+        var google_maps_api_key = "{{ google_maps_api_key }}";
+        var puntos_entrega_data = JSON.parse('{{ puntos_entrega_json|escapejs }}');
+
+        // Coordenadas de ORIGEN
+        var origen_lat_str = "{{ origen_lat|default_if_none:'' }}";
+        var origen_lng_str = "{{ origen_lng|default_if_none:'' }}";
+        var origen_coords = null;
+        if (origen_lat_str && origen_lng_str) {
+            origen_lat_str = origen_lat_str.replace(',', '.');
+            origen_lng_str = origen_lng_str.replace(',', '.');
+            var o_lat = parseFloat(origen_lat_str);
+            var o_lng = parseFloat(origen_lng_str);
+            if (!isNaN(o_lat) && !isNaN(o_lng)) {
+                origen_coords = { lat: o_lat, lng: o_lng };
+            }
+        }
+
+        // Coordenadas de DESTINO
+        var destino_lat_str = "{{ destino_lat|default_if_none:'' }}";
+        var destino_lng_str = "{{ destino_lng|default_if_none:'' }}";
+        var destino_coords = null;
+        if (destino_lat_str && destino_lng_str) {
+            destino_lat_str = destino_lat_str.replace(',', '.');
+            destino_lng_str = destino_lng_str.replace(',', '.');
+            var d_lat = parseFloat(destino_lat_str);
+            var d_lng = parseFloat(destino_lng_str);
+            if (!isNaN(d_lat) && !isNaN(d_lng)) {
+                destino_coords = { lat: d_lat, lng: d_lng };
+            }
+        }
+
+        console.log("origen_coords:", origen_coords);
+        console.log("destino_coords:", destino_coords);
+    </script>
+    
+    <!-- Google Maps API -->
+    <script defer
+            src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap">
+    </script>
+{% endblock extra_js %}

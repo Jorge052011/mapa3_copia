@@ -1,0 +1,113 @@
+{% extends "rutas/base.html" %}
+{% block title %}Resumen mensual{% endblock %}
+
+{% block content %}
+<h2>Resumen mensual</h2>
+<form method="get" style="margin: 12px 0; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <div>
+    <label><strong>Desde</strong></label><br>
+    <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}">
+  </div>
+
+  <div>
+    <label><strong>Hasta</strong></label><br>
+    <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
+  </div>
+
+  <button class="btn btn-primary" type="submit">Aplicar</button>
+
+  <a class="btn btn-primary" href="{% url 'crm:resumen_mensual' %}">
+    Últimos 6 meses
+  </a>
+</form>
+
+<div style="margin-bottom:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+  <a class="btn btn-secondary" href="{% url 'crm:ventas_list' %}">Ver ventas</a>
+
+  <span style="opacity:.8;">
+    Desde: <strong>{{ desde|date:"d-m-Y" }}</strong> —
+    Hoy: <strong>{{ hoy|date:"d-m-Y" }}</strong> —
+    Costo prom/kg: <strong>$ {{ costo_por_kg|floatformat:0 }}</strong>
+  </span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Mes</th>
+        <th>Ventas (cant.)</th>
+        <th style="text-align:right;">Kilos</th>
+
+        <th style="text-align:right;">Bruto ($)</th>
+        <th style="text-align:right;">Notas ($)</th>
+
+        <th style="text-align:right;">Ventas netas ($)</th>
+        <th style="text-align:right;">Neto real ($)</th>
+
+        <th style="text-align:right;">Costo est. ($)</th>
+        <th style="text-align:right;">Margen bruto ($)</th>
+
+        <th style="text-align:right;">Gastos ($)</th>
+        <th style="text-align:right;">Utilidad ($)</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.mes|date:"m-Y" }}</td>
+        <td style="text-align:center;">{{ f.cantidad_ventas }}</td>
+
+        <td style="text-align:right;">{{ f.kilos|floatformat:2 }}</td>
+
+        <td style="text-align:right;">$ {{ f.ventas_brutas|floatformat:0 }}</td>
+        <td style="text-align:right;">$ {{ f.notas_credito|floatformat:0 }}</td>
+
+        <td style="text-align:right;">$ {{ f.ventas_netas|floatformat:0 }}</td>
+        <td style="text-align:right;"><strong>$ {{ f.neto|floatformat:0 }}</strong></td>
+
+        <td style="text-align:right;">$ {{ f.costo|floatformat:0 }}</td>
+
+        <td style="text-align:right;">
+          <strong>$ {{ f.margen_bruto|floatformat:0 }}</strong>
+        </td>
+
+        <td style="text-align:right;">$ {{ f.gastos|floatformat:0 }}</td>
+
+        <td style="text-align:right;">
+          <strong>$ {{ f.utilidad|floatformat:0 }}</strong>
+        </td>
+      </tr>
+
+      {% empty %}
+      <tr>
+        <td colspan="11">Sin datos.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <th>Totales</th>
+        <th>—</th>
+
+        <th style="text-align:right;">{{ totales.kilos|floatformat:2 }}</th>
+
+        <th style="text-align:right;">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
+        <th style="text-align:right;">$ {{ totales.notas_credito|floatformat:0 }}</th>
+
+        <th style="text-align:right;">$ {{ totales.ventas_netas|floatformat:0 }}</th>
+        <th style="text-align:right;"><strong>$ {{ totales.neto|floatformat:0 }}</strong></th>
+
+        <th style="text-align:right;">$ {{ totales.costo|floatformat:0 }}</th>
+        <th style="text-align:right;"><strong>$ {{ totales.margen_bruto|floatformat:0 }}</strong></th>
+
+        <th style="text-align:right;">$ {{ totales.gastos|floatformat:0 }}</th>
+        <th style="text-align:right;"><strong>$ {{ totales.utilidad|floatformat:0 }}</strong></th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% endblock %}

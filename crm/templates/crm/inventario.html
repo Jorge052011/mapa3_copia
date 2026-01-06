@@ -1,0 +1,98 @@
+{% extends "rutas/base.html" %}
+{% block title %}Inventario (kg){% endblock %}
+
+{% block content %}
+<h2>Inventario (MVP por kilos)</h2>
+
+<form method="get" style="margin: 12px 0; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <div>
+    <label><strong>Ventana consumo (días)</strong></label><br>
+    <input type="number" name="dias" value="{{ dias }}" min="1" style="width:120px;">
+  </div>
+  <button class="btn btn-primary" type="submit">Aplicar</button>
+  <a class="btn btn-primary" href="?dias=30">30 días</a>
+  <a class="btn btn-primary" href="?dias=60">60 días</a>
+  <a class="btn btn-primary" href="?dias=90">90 días</a>
+</form>
+
+<div class="table-wrap">
+  <table>
+    <tbody>
+      <tr>
+        <th style="text-align:left;">Hoy</th>
+        <td>{{ hoy|date:"d-m-Y" }}</td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Kilos ingresados (total)</th>
+        <td>{{ kilos_ingresados|floatformat:2 }} kg</td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Kilos vendidos (total)</th>
+        <td>{{ kilos_vendidos_total|floatformat:2 }} kg</td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Stock actual</th>
+        <td><strong>{{ stock_kg|floatformat:2 }} kg</strong></td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Kilos vendidos últimos {{ dias }} días</th>
+        <td>{{ kilos_vendidos_ventana|floatformat:2 }} kg</td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Consumo promedio diario</th>
+        <td>{{ consumo_diario|floatformat:2 }} kg/día</td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Días de stock estimados</th>
+        <td>
+          {% if dias_stock %}
+            <strong>{{ dias_stock|floatformat:1 }}</strong> días
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Fecha estimada de agotamiento</th>
+        <td>
+          {% if fecha_reorden_estimada %}
+            <strong>{{ fecha_reorden_estimada|date:"d-m-Y" }}</strong>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      <tr style="background-color: #fff3cd;">
+        <th style="text-align:left;">⏰ Fecha sugerida para hacer orden</th>
+        <td>
+          {% if fecha_orden_sugerida %}
+            <strong style="color: #856404;">{{ fecha_orden_sugerida|date:"d-m-Y" }}</strong>
+            {% if dias_hasta_ordenar %}
+              {% if dias_hasta_ordenar > 0 %}
+                (en {{ dias_hasta_ordenar|floatformat:0 }} días)
+              {% else %}
+                <span style="color: #dc3545;">(¡ORDENAR YA!)</span>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align:left;">Lead time de importación</th>
+        <td>{{ dias_importacion }} días</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+{% if alerta_reorden %}
+  <p style="margin-top:12px; padding:10px; border:1px solid #dc3545; background-color: #f8d7da; border-radius:8px; color: #721c24;">
+    🚨 <strong>ALERTA CRÍTICA:</strong> Te quedan <strong>{{ dias_stock|floatformat:1 }}</strong> días de stock. 
+    Considerando que tu importación demora {{ dias_importacion }} días, 
+    <strong>debes hacer tu orden AHORA</strong> (fecha sugerida: {{ fecha_orden_sugerida|date:"d-m-Y" }}).
+  </p>
+{% endif %}
+
+{% endblock %}

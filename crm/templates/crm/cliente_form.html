@@ -1,0 +1,15 @@
+{% extends "rutas/base.html" %}
+{% block title %}Cliente{% endblock %}
+
+{% block content %}
+<h2>{% if modo == "editar" %}Editar{% else %}Crear{% endif %} cliente</h2>
+
+<form method="post">
+  {% csrf_token %}
+
+  {{ form.as_p }}
+
+  <button type="submit">Guardar</button>
+  <a href="{% url 'crm:clientes_list' %}">Volver</a>
+</form>
+{% endblock %}

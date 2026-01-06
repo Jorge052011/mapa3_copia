@@ -1,0 +1,486 @@
+/* =========================
+   BASE
+========================= */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden; /* ✅ evita desbordes laterales en móvil */
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    color: #343a40;
+    line-height: 1.6;
+}
+
+/* =========================
+   HEADER + NAV
+========================= */
+header {
+    background-color: #007bff;
+    color: #ffffff;
+    padding: 1.5em 0;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.2em;
+}
+
+/* Navegación */
+.main-nav {
+    margin-top: 18px;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap; /* ✅ permite que los botones bajen a otra línea en móvil */
+    padding: 0 12px; /* ✅ un poco de aire lateral */
+}
+
+/* Botón normal */
+.main-nav a {
+    padding: 10px 20px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95em;
+    color: #0056b3;
+    background: #ffffff;
+    border-radius: 25px;
+    border: 2px solid #ffffff;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap; /* ✅ evita quiebres raros dentro del botón */
+}
+
+/* Hover */
+.main-nav a:hover {
+    background: #0056b3;
+    color: #ffffff;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+/* Activo */
+.main-nav a.active {
+    background: #28a745;
+    color: #ffffff;
+    border-color: #28a745;
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+main {
+  max-width: 1300px;
+  width: 100%;
+  margin: 30px auto;
+  background: #fff;
+  padding: 24px;
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+h2, h3 {
+    color: #0056b3;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.5em;
+}
+
+/* =========================
+   FORMS
+========================= */
+form {
+    background-color: #f8f9fa;
+    padding: 22px;
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 30px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #495057;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 1em;
+}
+
+/* Botón submit */
+button[type="submit"] {
+    background-color: #28a745;
+    color: white;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.05em;
+    font-weight: 700;
+    transition: background-color 0.2s ease-in-out;
+}
+
+button[type="submit"]:hover {
+    background-color: #218838;
+}
+
+/* =========================
+   TABLES
+========================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+table th,
+table td {
+    padding: 8px 10px;
+    border: 1px solid #dee2e6;
+    text-align: left;
+}
+
+table th {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* =========================
+   LISTS & MESSAGES
+========================= */
+ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+li {
+    background-color: #e2f0fb;
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid #b3d7ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1em;
+    color: #004085;
+}
+
+/* =========================
+   MAP
+========================= */
+#map {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* =========================
+   MODAL
+========================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-box {
+    background: white;
+    padding: 22px;
+    border-radius: 10px;
+    max-width: 420px;
+    width: 100%;
+}
+
+.hidden {
+    display: none;
+}
+
+/* =========================
+   FOOTER
+========================= */
+footer {
+    text-align: center;
+    padding: 1.5em 0;
+    margin-top: 40px;
+    background-color: #343a40;
+    color: #e9ecef;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.15);
+}
+
+/* =========================
+   BOTONES GENERALES
+========================= */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Botón crear */
+.btn-primary {
+    background: #0d6efd;
+    color: #ffffff;
+}
+.btn-primary:hover {
+    background: #0b5ed7;
+}
+
+/* =========================
+   ACCIONES CRM
+========================= */
+.acciones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Evita cajas raras del <form> */
+.inline-form {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    display: inline;
+}
+
+/* Editar */
+.btn-edit {
+    background: #0d6efd;
+    color: #ffffff;
+}
+.btn-edit:hover {
+    background: #0b5ed7;
+}
+
+/* Borrar */
+.btn-delete {
+    background: #dc3545;
+    color: #ffffff;
+}
+.btn-delete:hover {
+    background: #bb2d3b;
+}
+
+/* Evita que el botón borrar herede verde global */
+button.btn-delete[type="submit"] {
+    background: #dc3545;
+}
+button.btn-delete[type="submit"]:hover {
+    background: #bb2d3b;
+}
+
+/* =========================
+   SEGMENTOS / FLAGS
+========================= */
+.segmento {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  display: inline-block;
+}
+
+/* Colores por segmento */
+.segmento-vip {
+  background-color: #f6c343;
+  color: #000;
+}
+.segmento-frecuente {
+  background-color: #0d6efd;
+  color: #fff;
+}
+.segmento-dormido {
+  background-color: #6c757d;
+  color: #fff;
+}
+.segmento-ocasional {
+  background-color: #e9ecef;
+  color: #000;
+}
+
+.flag {
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-block;
+  line-height: 1;
+}
+
+.flag-red { background: #dc3545; color: white; }
+.flag-gold { background: #f6c343; color: #111; }
+.flag-blue { background: #0d6efd; color: white; }
+.flag-gray { background: #adb5bd; color: #111; }
+
+/* =========================
+   TABLE WRAP (para que no se salga del marco)
+========================= */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch; /* ✅ scroll suave iOS */
+}
+
+.table-wrap table {
+  width: 100%;
+  min-width: 1000px; /* ajusta si agregas más columnas */
+  border-collapse: collapse;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  header {
+    padding: 1.1em 0;
+  }
+
+  header h1 {
+    font-size: 1.35em;
+    line-height: 1.2;
+    padding: 0 10px;
+  }
+
+  main {
+    margin: 12px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .main-nav {
+    gap: 10px;
+  }
+
+  .main-nav a {
+    padding: 10px 14px;
+    font-size: 0.95em;
+  }
+
+  /* botones más cómodos */
+  .btn, .btn-primary, .btn-edit, .btn-delete {
+    padding: 10px 12px;
+    font-size: 0.95em;
+  }
+
+  /* baja un poco el mínimo en móvil para que el scroll sea menos agresivo */
+  .table-wrap table {
+    min-width: 860px;
+  }
+}
+
+@media (max-width: 420px) {
+  header h1 {
+    font-size: 1.15em;
+  }
+
+  .main-nav a {
+    padding: 9px 12px;
+    font-size: 0.9em;
+  }
+
+  main {
+    margin: 10px;
+    padding: 12px;
+  }
+}
+
+/* ✅ FILTROS alineados */
+.filtros{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;   /* 👈 clave: alinea arriba */
+  margin: 12px 0 18px;
+  padding: 14px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+}
+
+.filtros label{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  font-size: .9rem;
+  min-width: 160px;          /* evita “saltos” raros */
+}
+
+.filtros select,
+.filtros input{
+  height: 40px;              /* 👈 misma altura: elimina el desfase */
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: .95rem;
+}
+
+/* Acciones (Filtrar/Limpiar) alineadas */
+.filtros-actions{
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+/* (Opcional) Mín kilos más angosto */
+.filtros input[name="min_kilos"]{
+  max-width: 140px;
+}
+
+/* Que los filtros ocupen el ancho justo y no dejen tanto vacío */
+.filtros label{
+  min-width: 180px;       /* antes 160px */
+}
+
+.filtros-actions{
+  margin-left: auto;      /* empuja botones a la derecha */
+}
+
+@media (max-width: 768px){
+  .filtros{
+    gap: 12px;
+  }
+  .filtros label{
+    min-width: 100%;
+  }
+  .filtros-actions{
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+

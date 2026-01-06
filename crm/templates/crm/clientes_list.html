@@ -1,0 +1,186 @@
+{% extends 'rutas/base.html' %}
+
+{% block content %}
+<h2>Listado de Clientes</h2>
+
+<!-- Botones de acción -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+  <a class="btn btn-primary" href="{% url 'crm:venta_nueva' %}">
+    ➕ Nueva venta
+  </a>
+  <a href="{% url 'crm:crear_cliente' %}" class="btn btn-primary">
+    ➕ Crear cliente
+  </a>
+</div>
+
+<!-- ✅ FORMULARIO DE FILTROS Y BÚSQUEDA -->
+<form method="get" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        
+        <!-- ✅ NUEVO: Campo de búsqueda -->
+        <div>
+            <label for="buscar" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                🔍 Buscar por nombre:
+            </label>
+            <input 
+                type="text" 
+                id="buscar" 
+                name="buscar" 
+                value="{{ f.buscar }}"
+                placeholder="Ej: Juan Pérez"
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Filtro por segmento -->
+        <div>
+            <label for="segmento" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Segmento:
+            </label>
+            <select id="segmento" name="segmento" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todos</option>
+                <option value="VIP" {% if f.segmento == "VIP" %}selected{% endif %}>VIP</option>
+                <option value="Frecuente" {% if f.segmento == "Frecuente" %}selected{% endif %}>Frecuente</option>
+                <option value="Ocasional" {% if f.segmento == "Ocasional" %}selected{% endif %}>Ocasional</option>
+                <option value="Dormido" {% if f.segmento == "Dormido" %}selected{% endif %}>Dormido</option>
+            </select>
+        </div>
+
+        <!-- Filtro por comuna -->
+        <div>
+            <label for="comuna" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Comuna:
+            </label>
+            <select id="comuna" name="comuna" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todas</option>
+                {% for c in comunas %}
+                <option value="{{ c }}" {% if f.comuna == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Filtro por kilos mínimos -->
+        <div>
+            <label for="min_kilos" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Kilos mínimos:
+            </label>
+            <input 
+                type="number" 
+                id="min_kilos" 
+                name="min_kilos" 
+                value="{{ f.min_kilos }}"
+                placeholder="Ej: 50"
+                step="0.01"
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Orden -->
+        <div>
+            <label for="orden" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Ordenar por:
+            </label>
+            <select id="orden" name="orden" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="" {% if not f.orden %}selected{% endif %}>Kilos (mayor a menor)</option>
+                <option value="kilos_asc" {% if f.orden == "kilos_asc" %}selected{% endif %}>Kilos (menor a mayor)</option>
+                <option value="gasto_desc" {% if f.orden == "gasto_desc" %}selected{% endif %}>Gasto (mayor a menor)</option>
+                <option value="gasto_asc" {% if f.orden == "gasto_asc" %}selected{% endif %}>Gasto (menor a mayor)</option>
+                <option value="id" {% if f.orden == "id" %}selected{% endif %}>ID</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Botones -->
+    <div style="display: flex; gap: 10px;">
+        <button type="submit" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🔍 Buscar
+        </button>
+        <a href="{% url 'crm:clientes_list' %}" style="padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+            🔄 Limpiar filtros
+        </a>
+    </div>
+</form>
+
+<!-- ✅ Mostrar resultados de búsqueda -->
+{% if f.buscar %}
+<div style="padding: 10px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; margin-bottom: 15px;">
+    📊 Mostrando resultados para: <strong>"{{ f.buscar }}"</strong>
+    {% if clientes.paginator.count == 0 %}
+        - No se encontraron clientes
+    {% elif clientes.paginator.count == 1 %}
+        - 1 cliente encontrado
+    {% else %}
+        - {{ clientes.paginator.count }} clientes encontrados
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Tabla de clientes -->
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #f0f0f0;">
+            <th style="padding: 10px; border: 1px solid #ddd;">Nombre</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Teléfono</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Comuna</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Gasto Total</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Segmento</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cliente in clientes %}
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.nombre }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.telefono }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.comuna }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.kilos_acumulados|floatformat:2 }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${{ cliente.gasto_total|floatformat:0 }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                <span style="padding: 4px 8px; border-radius: 3px; background-color: {{ cliente.segmento_color }}; color: white;">
+                    {{ cliente.segmento }}
+                </span>
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                <a href="{% url 'crm:venta_nueva' %}?cliente={{ cliente.id }}" 
+                   style="background-color: #28a745; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; font-size: 12px; margin-right: 5px;">
+                    💰 Venta
+                </a>
+                <a href="{% url 'crm:editar_cliente' cliente.id %}" 
+                   style="background-color: #007bff; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; font-size: 12px;">
+                    ✏️ Editar
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" style="padding: 20px; text-align: center; color: #999;">
+                {% if f.buscar %}
+                    No se encontraron clientes con el nombre "{{ f.buscar }}"
+                {% else %}
+                    No hay clientes que mostrar según los filtros aplicados.
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Paginación -->
+{% if clientes.has_other_pages %}
+<div class="pagination" style="margin-top: 20px; text-align: center;">
+    {% if clientes.has_previous %}
+        <a href="?page=1{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">&laquo; primera</a>
+        <a href="?page={{ clientes.previous_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">anterior</a>
+    {% endif %}
+
+    <span style="margin: 0 15px;">
+        Página {{ clientes.number }} de {{ clientes.paginator.num_pages }}
+    </span>
+
+    {% if clientes.has_next %}
+        <a href="?page={{ clientes.next_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">siguiente</a>
+        <a href="?page={{ clientes.paginator.num_pages }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">última &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

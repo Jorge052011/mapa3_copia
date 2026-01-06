@@ -1,0 +1,218 @@
+{% extends 'rutas/base.html' %}
+
+{% block content %}
+<h2>Listado de Ventas</h2>
+
+<!-- Botones de acción -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+  <a class="btn btn-primary" href="{% url 'crm:venta_nueva' %}">
+    ➕ Nueva venta
+  </a>
+  <a href="{% url 'crm:crear_cliente' %}" class="btn btn-primary">
+    ➕ Crear cliente
+  </a>
+</div>
+
+<!-- ✅ FORMULARIO DE FILTROS Y BÚSQUEDA -->
+<form method="get" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        
+        <!-- ✅ NUEVO: Campo de búsqueda por cliente -->
+        <div>
+            <label for="buscar_cliente" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                🔍 Buscar cliente:
+            </label>
+            <input 
+                type="text" 
+                id="buscar_cliente" 
+                name="buscar_cliente" 
+                value="{{ f.buscar_cliente }}"
+                placeholder="Ej: Juan Pérez"
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Filtro por tipo de documento -->
+        <div>
+            <label for="tipo_documento" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Tipo documento:
+            </label>
+            <select id="tipo_documento" name="tipo_documento" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todos</option>
+                <option value="sin_doc" {% if f.tipo_documento == "sin_doc" %}selected{% endif %}>Sin documento</option>
+                <option value="boleta" {% if f.tipo_documento == "boleta" %}selected{% endif %}>Boleta</option>
+                <option value="factura" {% if f.tipo_documento == "factura" %}selected{% endif %}>Factura</option>
+                <option value="nota_credito" {% if f.tipo_documento == "nota_credito" %}selected{% endif %}>Nota crédito</option>
+            </select>
+        </div>
+
+        <!-- Filtro por canal -->
+        <div>
+            <label for="canal" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Canal:
+            </label>
+            <select id="canal" name="canal" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todos</option>
+                <option value="instagram" {% if f.canal == "instagram" %}selected{% endif %}>Instagram</option>
+                <option value="whatsapp" {% if f.canal == "whatsapp" %}selected{% endif %}>WhatsApp</option>
+                <option value="web" {% if f.canal == "web" %}selected{% endif %}>Web</option>
+                <option value="otro" {% if f.canal == "otro" %}selected{% endif %}>Otro</option>
+            </select>
+        </div>
+
+        <!-- Filtro por kilos mínimos -->
+        <div>
+            <label for="min_kilos" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Kilos mínimos:
+            </label>
+            <input 
+                type="number" 
+                id="min_kilos" 
+                name="min_kilos" 
+                value="{{ f.min_kilos }}"
+                placeholder="Ej: 10"
+                step="0.01"
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Filtro por kilos máximos -->
+        <div>
+            <label for="max_kilos" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Kilos máximos:
+            </label>
+            <input 
+                type="number" 
+                id="max_kilos" 
+                name="max_kilos" 
+                value="{{ f.max_kilos }}"
+                placeholder="Ej: 100"
+                step="0.01"
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <!-- Orden -->
+        <div>
+            <label for="orden_id" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Ordenar por:
+            </label>
+            <select id="orden_id" name="orden_id" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="desc" {% if f.orden_id == "desc" %}selected{% endif %}>ID (más reciente)</option>
+                <option value="asc" {% if f.orden_id == "asc" %}selected{% endif %}>ID (más antigua)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Botones -->
+    <div style="display: flex; gap: 10px;">
+        <button type="submit" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🔍 Buscar
+        </button>
+        <a href="{% url 'crm:ventas_list' %}" style="padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+            🔄 Limpiar filtros
+        </a>
+    </div>
+</form>
+
+<!-- ✅ Mostrar resultados de búsqueda -->
+{% if f.buscar_cliente %}
+<div style="padding: 10px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; margin-bottom: 15px;">
+    📊 Mostrando ventas del cliente: <strong>"{{ f.buscar_cliente }}"</strong>
+    {% if ventas.paginator.count == 0 %}
+        - No se encontraron ventas
+    {% elif ventas.paginator.count == 1 %}
+        - 1 venta encontrada
+    {% else %}
+        - {{ ventas.paginator.count }} ventas encontradas
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Tabla de ventas -->
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #f0f0f0;">
+            <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Cliente</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Fecha</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Tipo Doc.</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">N° Doc.</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Canal</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Monto</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for venta in ventas %}
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">#{{ venta.id }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                <strong>{{ venta.cliente.nombre }}</strong>
+                {% if venta.cliente.telefono %}
+                <br><small style="color: #666;">📱 {{ venta.cliente.telefono }}</small>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_tipo_documento_display }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.numero_documento|default:"-" }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_canal_display }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.kilos_total|floatformat:2 }} kg</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${{ venta.monto_total|floatformat:0 }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                <a href="{% url 'crm:venta_detalle' venta.id %}" 
+                   style="background-color: #17a2b8; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; font-size: 12px; margin-right: 5px;">
+                    👁️ Ver esta Venta
+                </a>
+                <a href="{% url 'crm:venta_editar' venta.id %}" 
+                   style="background-color: #007bff; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; font-size: 12px;">
+                    ✏️ Editar
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="9" style="padding: 20px; text-align: center; color: #999;">
+                {% if f.buscar_cliente %}
+                    No se encontraron ventas para el cliente "{{ f.buscar_cliente }}"
+                {% else %}
+                    No hay ventas que mostrar según los filtros aplicados.
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% comment %}
+{% if ventas %}
+<div style="margin-top: 15px; padding: 15px; background-color: #e9ecef; border-radius: 5px;">
+  <strong>Totales en esta página:</strong>
+  <span style="margin-left: 20px;">
+    Total Kilos: <strong>{{ ventas.object_list|sum_field:"kilos_total"|floatformat:2 }} kg</strong>
+  </span>
+  <span style="margin-left: 20px;">
+    Total Monto: <strong>${{ ventas.object_list|sum_field:"monto_total"|floatformat:0 }}</strong>
+  </span>
+</div>
+{% endif %}
+{% endcomment %}
+
+<!-- Paginación -->
+{% if ventas.has_other_pages %}
+<div class="pagination" style="margin-top: 20px; text-align: center;">
+    {% if ventas.has_previous %}
+        <a href="?page=1{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">&laquo; primera</a>
+        <a href="?page={{ ventas.previous_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">anterior</a>
+    {% endif %}
+
+    <span style="margin: 0 15px;">
+        Página {{ ventas.number }} de {{ ventas.paginator.num_pages }}
+    </span>
+
+    {% if ventas.has_next %}
+        <a href="?page={{ ventas.next_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">siguiente</a>
+        <a href="?page={{ ventas.paginator.num_pages }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">última &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

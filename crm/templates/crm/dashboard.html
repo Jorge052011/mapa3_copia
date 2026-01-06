@@ -1,0 +1,191 @@
+{% extends "rutas/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>📊 Dashboard</h2>
+<p>Rango: {{ desde }} → {{ hoy }}</p>
+
+<!-- KPI cards -->
+<div style="display:grid; grid-template-columns:repeat(4, minmax(180px, 1fr)); gap:12px; margin:12px 0;">
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <div><strong>Ingresos</strong></div>
+    <div style="font-size:1.5em;">$ {{ kpi_ingresos|floatformat:0 }}</div>
+  </div>
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <div><strong>Kilos</strong></div>
+    <div style="font-size:1.5em;">{{ kpi_kilos|floatformat:0 }} kg</div>
+  </div>
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <div><strong>Ventas</strong></div>
+    <div style="font-size:1.5em;">{{ kpi_n_ventas }}</div>
+  </div>
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <div><strong>Ticket promedio</strong></div>
+    <div style="font-size:1.5em;">$ {{ kpi_ticket|floatformat:0 }}</div>
+  </div>
+</div>
+
+<!-- Charts grid -->
+<div style="display:grid; grid-template-columns:repeat(2, minmax(320px, 1fr)); gap:16px; align-items:start; margin-top:12px;">
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <h3 style="margin-top:0;">Ingresos por mes</h3>
+    <canvas id="chartIngresosMes"></canvas>
+  </div>
+
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <h3 style="margin-top:0;">Kilos por mes</h3>
+    <canvas id="chartKilosMes"></canvas>
+  </div>
+
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <h3 style="margin-top:0;">Ingresos por canal</h3>
+    <canvas id="chartCanal"></canvas>
+  </div>
+
+  <div style="padding:12px; border:1px solid #ddd; border-radius:10px;">
+    <h3 style="margin-top:0;">Top productos (kilos)</h3>
+    <canvas id="chartTopProductos"></canvas>
+  </div>
+</div>
+
+<!-- Tables (opcional, útil para validar) -->
+<h3 style="margin-top:18px;">Detalle mensual</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Mes</th>
+        <th>Ventas</th>
+        <th>Kilos</th>
+        <th>Ingresos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in serie %}
+      <tr>
+        <td>{{ r.mes|date:"m-Y" }}</td>
+        <td>{{ r.ventas }}</td>
+        <td>{{ r.kilos|default:0|floatformat:0 }} kg</td>
+        <td>$ {{ r.ingresos|default:0|floatformat:0 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Sin datos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  // Datos desde Django
+  const labelsMes   = {{ labels_mes_json|safe }};
+  const ingresosMes = {{ ingresos_mes_json|safe }};
+  const kilosMes    = {{ kilos_mes_json|safe }};
+
+  const canalLabels   = {{ canal_labels_json|safe }};
+  const canalIngresos = {{ canal_ingresos_json|safe }};
+
+  // ✅ Top productos ahora es por KILOS
+  const prodLabels = {{ prod_labels_json|safe }};
+  const prodKilos  = {{ prod_kilos_json|safe }};
+
+  // 1) Ingresos por mes (línea)
+  new Chart(document.getElementById("chartIngresosMes"), {
+    type: "line",
+    data: {
+      labels: labelsMes,
+      datasets: [{
+        label: "Ingresos ($)",
+        data: ingresosMes,
+        tension: 0.25
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: {
+        y: {
+          ticks: {
+            callback: (v) => "$ " + Math.round(v).toLocaleString("es-CL")
+          }
+        }
+      }
+    }
+  });
+
+  // 2) Kilos por mes (barras)
+  new Chart(document.getElementById("chartKilosMes"), {
+    type: "bar",
+    data: {
+      labels: labelsMes,
+      datasets: [{
+        label: "Kilos",
+        data: kilosMes
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: {
+        y: {
+          ticks: {
+            callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg"
+          }
+        }
+      }
+    }
+  });
+
+  // 3) Ingresos por canal (doughnut)
+  new Chart(document.getElementById("chartCanal"), {
+    type: "doughnut",
+    data: {
+      labels: canalLabels,
+      datasets: [{
+        label: "Ingresos",
+        data: canalIngresos
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: $ ${Math.round(ctx.raw).toLocaleString("es-CL")}`
+          }
+        }
+      }
+    }
+  });
+
+  // 4) Top productos (barras horizontales) ✅ KILOS
+  new Chart(document.getElementById("chartTopProductos"), {
+    type: "bar",
+    data: {
+      labels: prodLabels,
+      datasets: [{
+        label: "Kilos",
+        data: prodKilos
+      }]
+    },
+    options: {
+      responsive: true,
+      indexAxis: "y",
+      plugins: { legend: { display: true } },
+      scales: {
+        x: {
+          ticks: {
+            callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg"
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

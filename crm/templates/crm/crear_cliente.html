@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Crear Cliente</title>
+</head>
+<body>
+    <h1>Crear Cliente</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label>Nombre *</label><br>
+        <input type="text" name="nombre" required><br><br>
+
+        <label>Teléfono</label><br>
+        <input type="text" name="telefono"><br><br>
+
+        <label>Email</label><br>
+        <input type="email" name="email"><br><br>
+
+        <label>Comuna</label><br>
+        <input type="text" name="comuna"><br><br>
+
+        <label>Dirección</label><br>
+        <input type="text" name="direccion"><br><br>
+
+        <button type="submit">Guardar Cliente</button>
+    </form>
+</body>
+</html>
+

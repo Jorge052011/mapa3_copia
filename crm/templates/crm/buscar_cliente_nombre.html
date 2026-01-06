@@ -1,0 +1,40 @@
+{% extends "rutas/base.html" %}
+{% block title %}Buscar cliente por nombre{% endblock %}
+
+{% block content %}
+<h2>Buscar cliente por nombre</h2>
+
+<form method="post" class="card">
+  {% csrf_token %}
+
+  <label>Nombre</label>
+  <input type="text" name="nombre" value="{{ query }}" placeholder="Ej: Jenny" required>
+
+  <button type="submit" class="btn btn-success">Buscar</button>
+</form>
+
+{% if cliente %}
+<hr>
+
+<h3 style="color: green;">✅ Cliente encontrado</h3>
+
+<p><strong>Nombre:</strong> {{ cliente.nombre }}</p>
+<p><strong>Teléfono:</strong> {{ cliente.telefono }}</p>
+<p><strong>Email:</strong> {{ cliente.email }}</p>
+<p><strong>Comuna:</strong> {{ cliente.comuna }}</p>
+<p><strong>Dirección:</strong> {{ cliente.direccion }}</p>
+
+<a href="{% url 'crm:editar_cliente' cliente.id %}" class="btn btn-edit">
+  ✏️ Editar cliente
+</a>
+
+<a href="{% url 'crm:venta_nueva' %}?cliente={{ cliente.id }}" class="btn btn-edit">
+  ➕ Agregar venta
+</a>
+
+{% elif query %}
+<hr>
+<p style="color:red;">❌ No se encontró ningún cliente con ese nombre.</p>
+{% endif %}
+
+{% endblock %}
