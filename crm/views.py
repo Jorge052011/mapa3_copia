@@ -739,3 +739,26 @@ def inventario(request):
         )
         messages.error(request, "Error al cargar inventario. Contacta al administrador.")
         return redirect("crm:dashboard")
+
+# crm/views_inventario.py
+from datetime import date
+from django.shortcuts import render
+from django.utils.dateparse import parse_date
+
+from .services_inventario import consumo_bolsas
+
+def consumo_bolsas_view(request):
+    # Lee fechas desde GET: ?desde=2026-01-01&hasta=2026-01-06
+    desde_str = request.GET.get("desde")
+    hasta_str = request.GET.get("hasta")
+
+    desde = parse_date(desde_str) if desde_str else None
+    hasta = parse_date(hasta_str) if hasta_str else None
+
+    data = consumo_bolsas(desde=desde, hasta=hasta)
+
+    return render(request, "crm/consumo_bolsas.html", {
+        "data": data,
+        "desde": desde_str or "",
+        "hasta": hasta_str or "",
+    })

@@ -24,23 +24,23 @@
       </tr>
       <tr>
         <th style="text-align:left;">Kilos ingresados (total)</th>
-        <td>{{ kilos_ingresados|floatformat:2 }} kg</td>
+        <td>{{ kilos_ingresados|floatformat:0 }} kg</td>
       </tr>
       <tr>
         <th style="text-align:left;">Kilos vendidos (total)</th>
-        <td>{{ kilos_vendidos_total|floatformat:2 }} kg</td>
+        <td>{{ kilos_vendidos_total|floatformat:0 }} kg</td>
       </tr>
       <tr>
         <th style="text-align:left;">Stock actual</th>
-        <td><strong>{{ stock_kg|floatformat:2 }} kg</strong></td>
+        <td><strong>{{ stock_kg|floatformat:0 }} kg</strong></td>
       </tr>
       <tr>
         <th style="text-align:left;">Kilos vendidos últimos {{ dias }} días</th>
-        <td>{{ kilos_vendidos_ventana|floatformat:2 }} kg</td>
+        <td>{{ kilos_vendidos_ventana|floatformat:0 }} kg</td>
       </tr>
       <tr>
         <th style="text-align:left;">Consumo promedio diario</th>
-        <td>{{ consumo_diario|floatformat:2 }} kg/día</td>
+        <td>{{ consumo_diario|floatformat:1 }} kg/día</td>
       </tr>
       <tr>
         <th style="text-align:left;">Días de stock estimados</th>

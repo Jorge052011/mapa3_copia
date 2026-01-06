@@ -1,0 +1,180 @@
+{% extends "rutas/base.html" %}
+{% load static %}
+
+{% block title %}Inventario de Bolsas{% endblock %}
+
+{% block extra_head %}
+<style>
+:root{
+  --bg:#f7f7f9;
+  --card:#ffffff;
+  --border:#e2e2e2;
+  --primary:#4f46e5;
+  --text:#1f2937;
+  --muted:#6b7280;
+}
+
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:16px;
+}
+
+h1{margin-bottom:12px}
+h2{margin-top:32px}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 4px 12px rgba(0,0,0,.03);
+}
+
+/* ---------- FILTRO ---------- */
+.filter{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  align-items:end;
+}
+
+label{font-size:13px;color:var(--muted)}
+input,button{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font-size:14px;
+}
+button{
+  background:var(--primary);
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+button:hover{opacity:.9}
+a.limpiar{
+  display:block;
+  text-align:center;
+  margin-top:6px;
+  font-size:13px;
+}
+
+/* ---------- KPIs ---------- */
+.kpis{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;
+  margin-top:20px;
+}
+
+.kpi{text-align:center}
+.kpi .label{color:var(--muted);font-size:14px}
+.kpi .value{font-size:32px;font-weight:700;margin-top:4px}
+.kpi.consumo{border-left:6px solid #f59e0b}
+.kpi.stock{border-left:6px solid #10b981}
+
+/* ---------- TABLA ---------- */
+.table-wrap{overflow-x:auto;margin-top:16px}
+table{width:100%;border-collapse:collapse;min-width:800px}
+th,td{padding:10px;border-bottom:1px solid var(--border);font-size:14px}
+th{background:#fafafa;font-weight:600}
+.bad{color:#b91c1c;font-weight:600}
+.good{color:#065f46;font-weight:600}
+
+@media (max-width:600px){
+  h1{font-size:20px}
+  .kpi .value{font-size:26px}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+<h1>Consumo e Inventario de bolsas</h1>
+
+<!-- FILTRO -->
+<div class="card">
+  <form method="get" class="filter">
+    <div>
+      <label>Desde</label>
+      <input type="date" name="desde" value="{{ desde }}">
+    </div>
+    <div>
+      <label>Hasta</label>
+      <input type="date" name="hasta" value="{{ hasta }}">
+    </div>
+    <div>
+      <button type="submit">Filtrar</button>
+      <a class="limpiar" href="?">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+<!-- KPIs -->
+<div class="kpis">
+  <div class="card kpi consumo">
+    <div class="label">Consumo bolsas 8 kg</div>
+    <div class="value">{{ data.consumo_8 }}</div>
+  </div>
+
+  <div class="card kpi consumo">
+    <div class="label">Consumo bolsas 20 kg</div>
+    <div class="value">{{ data.consumo_20 }}</div>
+  </div>
+
+  <div class="card kpi stock">
+    <div class="label">Inventario bodega 8 kg</div>
+    <div class="value {% if data.inventario_8 < 0 %}bad{% else %}good{% endif %}">
+      {{ data.inventario_8 }}
+    </div>
+  </div>
+
+  <div class="card kpi stock">
+    <div class="label">Inventario bodega 20 kg</div>
+    <div class="value {% if data.inventario_20 < 0 %}bad{% else %}good{% endif %}">
+      {{ data.inventario_20 }}
+    </div>
+  </div>
+</div>
+
+{% if data.skus_sin_mapa %}
+<div class="card" style="margin-top:16px;background:#fff7ed;border-color:#fed7aa">
+  <b>⚠ SKUs sin mapeo:</b> {{ data.skus_sin_mapa|join:", " }}
+</div>
+{% endif %}
+
+<h2>Detalle</h2>
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Producto</th>
+        <th>Tipo doc</th>
+        <th>Unidades</th>
+        <th>Bolsas 8</th>
+        <th>Bolsas 20</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in data.detalle %}
+      <tr>
+        <td>{{ r.sku }}</td>
+        <td>{{ r.nombre }}</td>
+        <td>{{ r.tipo_doc }}</td>
+        <td>{{ r.unidades_sku }}</td>
+        <td>{{ r.bolsas_8 }}</td>
+        <td>{{ r.bolsas_20 }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">Sin movimientos</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+</div>
+{% endblock %}

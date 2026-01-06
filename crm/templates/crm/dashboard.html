@@ -1,4 +1,5 @@
 {% extends "rutas/base.html" %}
+{% load humanize %}
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
@@ -65,8 +66,8 @@
       <tr>
         <td>{{ r.mes|date:"m-Y" }}</td>
         <td>{{ r.ventas }}</td>
-        <td>{{ r.kilos|default:0|floatformat:0 }} kg</td>
-        <td>$ {{ r.ingresos|default:0|floatformat:0 }}</td>
+        <td>{{ r.kilos|default:0|floatformat:0|intcomma }} kg</td>
+        <td>$ {{ r.ingresos|default:0|floatformat:0|intcomma }}</td>
       </tr>
       {% empty %}
       <tr><td colspan="4">Sin datos.</td></tr>

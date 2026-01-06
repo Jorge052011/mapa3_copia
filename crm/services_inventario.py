@@ -5,6 +5,10 @@ from django.utils import timezone
 
 from .models import VentaItem, Venta
 
+
+# inventario original las mermas se deben restar del original
+STOCK_INICIAL_8 = 1095-2
+STOCK_INICIAL_20 = 862-8
 # ---------------------------------------------------------
 # MAPA SKU -> (bolsas_8kg, bolsas_20kg)
 # AJUSTA las llaves para que calcen con tu Producto.sku real
@@ -21,29 +25,12 @@ SKU_BOLSAS_MAP = {
 }
 
 def consumo_bolsas(desde=None, hasta=None):
-    """
-    Retorna consumo de bolsas 8kg y 20kg según ventas reales (con items),
-    descontando Nota de Crédito (si existen items cargados en la NC).
-
-    Output:
-    {
-      "bolsas_8": int,
-      "bolsas_20": int,
-      "detalle": [
-          {"sku": "...", "nombre": "...", "unidades_sku": 3, "bolsas_8": 6, "bolsas_20": 0},
-          ...
-      ],
-      "skus_sin_mapa": ["..."]
-    }
-    """
     if desde is None:
         hoy = timezone.localdate()
         desde = hoy.replace(day=1) - timezone.timedelta(days=180)
     if hasta is None:
         hasta = timezone.localdate()
 
-    # OJO: Venta.fecha es DateTimeField, así que filtramos por rango datetime inclusivo
-    # usando fecha__date para comparar con DateField (localdate).
     items_qs = (
         VentaItem.objects
         .select_related("producto", "venta")
@@ -67,19 +54,16 @@ def consumo_bolsas(desde=None, hasta=None):
         tipo_doc = r["venta__tipo_documento"]
         unidades = int(r["unidades_sku"] or 0)
 
-        # Signo: Nota de crédito resta consumo (devuelve stock / revierte venta)
         signo = -1 if tipo_doc == Venta.TipoDocumento.NOTA_CREDITO else 1
 
         if sku not in SKU_BOLSAS_MAP:
             if unidades:
                 skus_sin_mapa.add(sku)
-            # si no está mapeado, lo dejamos fuera del conteo
-            # (así no inventamos bolsas)
             continue
 
         b8, b20 = SKU_BOLSAS_MAP[sku]
-        c8 = signo * unidades * int(b8)
-        c20 = signo * unidades * int(b20)
+        c8 = signo * unidades * b8
+        c20 = signo * unidades * b20
 
         total_8 += c8
         total_20 += c20
@@ -93,12 +77,33 @@ def consumo_bolsas(desde=None, hasta=None):
             "bolsas_20": c20,
         })
 
-    # Ordena detalle por mayor consumo absoluto de bolsas (útil para revisar)
-    detalle.sort(key=lambda x: (abs(x["bolsas_8"]) + abs(x["bolsas_20"])), reverse=True)
+    detalle.sort(
+        key=lambda x: abs(x["bolsas_8"]) + abs(x["bolsas_20"]),
+        reverse=True
+    )
+
+    inventario_8 = STOCK_INICIAL_8 - total_8
+    inventario_20 = STOCK_INICIAL_20 - total_20
 
     return {
-        "bolsas_8": total_8,
-        "bolsas_20": total_20,
+        # consumo
+        "consumo_8": total_8,
+        "consumo_20": total_20,
+
+        # inventario
+        "stock_inicial_8": STOCK_INICIAL_8,
+        "stock_inicial_20": STOCK_INICIAL_20,
+        "inventario_8": STOCK_INICIAL_8 - total_8,
+        "inventario_20": STOCK_INICIAL_20 - total_20,
+
         "detalle": detalle,
         "skus_sin_mapa": sorted([s for s in skus_sin_mapa if s]),
+
+        "inventario_8": inventario_8,
+        "inventario_20": inventario_20,
+        "stock_inicial_8": STOCK_INICIAL_8,
+        "stock_inicial_20": STOCK_INICIAL_20,
+
+
+
     }
