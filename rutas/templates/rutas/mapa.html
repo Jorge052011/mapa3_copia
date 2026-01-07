@@ -4,268 +4,698 @@
 {% block extra_head %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- ✅ CSRF TOKEN DISPONIBLE GLOBALMENTE PARA JS - DECLARADO UNA SOLA VEZ AL INICIO -->
     <script>
         window.CSRF_TOKEN = "{{ csrf_token }}";
         console.log("CSRF_TOKEN inyectado:", window.CSRF_TOKEN);
     </script>
     
     <style>
-        #map {
-            height: 600px;
-            width: 100%;
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --bg-page: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .map-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        /* Header */
+        .page-header {
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(10px);
+        }
+
+        .page-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-header h1::before {
+            content: "🗺️";
+            font-size: 36px;
+            -webkit-text-fill-color: initial;
+        }
+
+        /* Card */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .card-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+            flex: 1;
+        }
+
+        .card-icon {
+            font-size: 24px;
+        }
+
+        /* Alertas */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            border-left: 4px solid;
         }
 
         .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+            border-color: var(--danger);
+            color: #991b1b;
         }
 
         .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 20px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+            border-color: var(--success);
+            color: #065f46;
         }
 
-        form {
-            margin-bottom: 15px;
+        .alert-icon {
+            font-size: 24px;
+            line-height: 1;
         }
 
-        label {
+        /* Formularios */
+        .form-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 14px;
             font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .form-input,
+        .form-select {
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Botones */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-dark);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-page);
+            border-color: var(--text-muted);
+        }
+
+        /* Lista de puntos */
+        .puntos-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .punto-item {
+            padding: 12px 16px;
+            background: var(--bg-page);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .punto-item:hover {
+            background: rgba(79, 70, 229, 0.05);
+            transform: translateX(4px);
+        }
+
+        .punto-info {
+            flex: 1;
+        }
+
+        .punto-nombre {
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+
+        .punto-direccion {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .punto-orden {
+            background: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .btn-delete {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 2px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        /* Checkboxes personalizados */
+        .checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--bg-page);
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .checkbox-item:hover {
+            background: white;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--text-dark);
+            flex: 1;
+        }
+
+        /* Mapa */
+        .map-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 16px;
+            border: 2px solid var(--border);
+        }
+
+        /* Resultados de optimización */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .result-label {
+            font-size: 13px;
+            color: #065f46;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #047857;
+        }
+
+        /* Grid de dos columnas */
+        .two-column-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .two-column-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 24px;
+            }
+
+            #map {
+                height: 400px;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 {% endblock extra_head %}
 
 {% block content %}
-    <h2>Mapa de Distribución</h2>
+<div class="map-container">
 
-    {# Mensajes de error #}
+    <!-- Header -->
+    <div class="page-header">
+        <h1>Optimización de Rutas de Distribución</h1>
+        <p style="color: var(--text-muted); margin: 0;">Planifica y optimiza tus rutas de entrega de manera eficiente</p>
+    </div>
+
+    <!-- Alertas -->
     {% if error_message %}
-        <div class="alert-error">
-            <p><strong>Error:</strong> {{ error_message }}</p>
+    <div class="alert alert-error">
+        <span class="alert-icon">⚠️</span>
+        <div>
+            <strong>Error:</strong> {{ error_message }}
         </div>
+    </div>
     {% endif %}
 
-    {# FORM PARA AGREGAR PUNTO #}
-    <h3>Agregar punto de entrega</h3>
-    <form method="post" action="{% url 'agregar_punto' %}">
-        {% csrf_token %}
-        <label for="nombre">Nombre del Punto:</label><br>
-        <input type="text" id="nombre" name="nombre" required style="width: 100%; max-width: 400px;"><br><br>
+    <!-- Grid principal -->
+    <div class="two-column-grid">
+        
+        <!-- Columna izquierda: Formularios -->
+        <div>
+            <!-- Agregar punto -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📍</span>
+                    <h3>Agregar Punto de Entrega</h3>
+                </div>
+                
+                <form method="post" action="{% url 'agregar_punto' %}" class="form-grid">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="nombre" class="form-label">Nombre del punto</label>
+                        <input type="text" id="nombre" name="nombre" class="form-input" 
+                               placeholder="Ej: Cliente ABC" required>
+                    </div>
 
-        <label for="direccion">Dirección:</label><br>
-        <input type="text" id="direccion" name="direccion" required style="width: 100%; max-width: 400px;"><br><br>
+                    <div class="form-group">
+                        <label for="direccion" class="form-label">Dirección completa</label>
+                        <input type="text" id="direccion" name="direccion" class="form-input" 
+                               placeholder="Calle, número, comuna" required>
+                    </div>
 
-        <button type="submit">Agregar Punto de Entrega</button>
-    </form>
-
-    <hr>
-
-    <h3>Puntos de Entrega actuales</h3>
-    <ul id="puntos-lista">
-        {% for punto in puntos_entrega %}
-            <li>
-                {{ punto.nombre }} - {{ punto.direccion }}
-                (Orden: {{ punto.orden_optimo|default:"N/A" }})
-                <button type="button"
-                        onclick="eliminarPunto('{% url 'borrar_punto' punto.id %}')">
-                    Eliminar
-                </button>
-            </li>
-        {% empty %}
-            <li>No hay puntos de entrega aún.</li>
-        {% endfor %}
-    </ul>
-
-    <hr>
-
-    {# FORM PARA CONFIGURAR ORIGEN / DESTINO Y OPTIMIZAR RUTA #}
-    <h3>Configurar origen, destino y optimizar ruta</h3>
-
-    <form method="post" action="{% url 'optimizar_ruta' %}">
-        {% csrf_token %}
-
-        {# SELECCIÓN DE PUNTOS A INCLUIR EN LA OPTIMIZACIÓN #}
-        <h4>Puntos a incluir en la optimización</h4>
-        {% if puntos_entrega %}
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; margin-bottom: 15px;">
-                {% for punto in puntos_entrega %}
-                    {% with punto_id_str=punto.id|stringformat:"s" %}
-                        <label style="display:block; margin-bottom: 4px;">
-                            <input type="checkbox"
-                                   name="puntos_seleccionados"
-                                   value="{{ punto.id }}"
-                                   {% if selected_ids %}
-                                       {% if punto_id_str in selected_ids %}
-                                           checked
-                                       {% endif %}
-                                   {% else %}
-                                       checked
-                                   {% endif %}>
-                            {{ punto.nombre }} - {{ punto.direccion }}
-                            {% if punto.orden_optimo %}
-                                (Orden actual: {{ punto.orden_optimo }})
-                            {% endif %}
-                        </label>
-                    {% endwith %}
-                {% endfor %}
+                    <button type="submit" class="btn btn-success">
+                        ➕ Agregar punto
+                    </button>
+                </form>
             </div>
-            <small>
-                (Por defecto todos están seleccionados; después de optimizar se mantienen
-                marcados solo los que se usaron en la última ruta.)
-            </small>
-        {% else %}
-            <p>No hay puntos de entrega para optimizar.</p>
-        {% endif %}
 
-        <hr>
+            <!-- Lista de puntos -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📋</span>
+                    <h3>Puntos de Entrega Registrados</h3>
+                </div>
+                
+                <ul class="puntos-list">
+                    {% for punto in puntos_entrega %}
+                    <li class="punto-item">
+                        <div class="punto-info">
+                            <div class="punto-nombre">{{ punto.nombre }}</div>
+                            <div class="punto-direccion">{{ punto.direccion }}</div>
+                        </div>
+                        {% if punto.orden_optimo %}
+                        <span class="punto-orden">Orden: {{ punto.orden_optimo }}</span>
+                        {% endif %}
+                        <button type="button" class="btn-delete"
+                                onclick="eliminarPunto('{% url 'borrar_punto' punto.id %}')">
+                            🗑️ Eliminar
+                        </button>
+                    </li>
+                    {% empty %}
+                    <li style="text-align: center; padding: 32px; color: var(--text-muted);">
+                        📍 No hay puntos de entrega registrados
+                    </li>
+                    {% endfor %}
+                </ul>
 
-        <h4>Origen del recorrido</h4>
-
-        <label for="origen_predefinido">Selecciona origen:</label><br>
-        <select id="origen_predefinido" name="origen_predefinido"
-                onchange="toggleOrigenCustom()"
-                style="max-width: 400px; width: 100%;">
-            <option value="">— Selecciona una dirección —</option>
-
-            {# 3 DIRECCIONES PREDEFINIDAS #}
-            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
-                Bodega Laguna Grande (Av. Laguna Grande 1120, Casa 36, San Pedro de la Paz)
-            </option>
-            <option value="Díaz de Solís 1879, Concepción">
-                Bodega Díaz de Solís (Díaz de Solís 1879, Concepción)
-            </option>
-            <option value="Camino Los Carros 1955, Concepción">
-                Bodega Camino Los Carros (Camino Los Carros 1955, Concepción)
-            </option>
-
-            <option value="custom">Otra dirección...</option>
-        </select>
-        <br><br>
-
-        <div id="origen_custom_wrapper" style="display:none; margin-top: 5px;">
-            <label for="origen_custom">Dirección personalizada de origen:</label><br>
-            <input type="text"
-                   id="origen_custom"
-                   name="origen_custom"
-                   placeholder="Calle, número, comuna"
-                   style="width: 100%; max-width: 400px;"
-                   value="">
-            <br><br>
+                {% if puntos_entrega %}
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <button type="button" class="btn btn-danger" 
+                            onclick="borrarTodosPuntos('{% url 'borrar_puntos' %}')">
+                        🗑️ Borrar todos los puntos
+                    </button>
+                </div>
+                {% endif %}
+            </div>
         </div>
 
-        <h4>Fin del recorrido</h4>
-        <label for="destino_predefinido">Destino:</label><br>
-        <select id="destino_predefinido" name="destino_predefinido"
-                onchange="toggleDestinoCustom()"
-                style="max-width: 400px; width: 100%;">
-            <option value="same_origin">Volver a la misma bodega de origen</option>
+        <!-- Columna derecha: Optimización -->
+        <div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🎯</span>
+                    <h3>Configurar y Optimizar Ruta</h3>
+                </div>
 
-            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
-                Terminar en Bodega Laguna Grande
-            </option>
-            <option value="Díaz de Solís 1879, Concepción">
-                Terminar en Bodega Díaz de Solís
-            </option>
-            <option value="Camino Los Carros 1955, Concepción">
-                Terminar en Bodega Camino Los Carros
-            </option>
+                <form method="post" action="{% url 'optimizar_ruta' %}" class="form-grid">
+                    {% csrf_token %}
 
-            <option value="custom">Otra dirección...</option>
-        </select>
+                    <!-- Selección de puntos -->
+                    {% if puntos_entrega %}
+                    <div class="form-group">
+                        <label class="form-label">Puntos a incluir en la optimización</label>
+                        <div class="checkbox-list">
+                            {% for punto in puntos_entrega %}
+                            {% with punto_id_str=punto.id|stringformat:"s" %}
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="puntos_seleccionados" value="{{ punto.id }}"
+                                       {% if selected_ids %}
+                                           {% if punto_id_str in selected_ids %}checked{% endif %}
+                                       {% else %}
+                                           checked
+                                       {% endif %}>
+                                <span class="checkbox-label">
+                                    <strong>{{ punto.nombre }}</strong> - {{ punto.direccion }}
+                                    {% if punto.orden_optimo %}(Orden: {{ punto.orden_optimo }}){% endif %}
+                                </span>
+                            </label>
+                            {% endwith %}
+                            {% endfor %}
+                        </div>
+                        <p class="form-hint">Por defecto todos están seleccionados</p>
+                    </div>
 
-        <br><br>
+                    <!-- Origen -->
+                    <div class="form-group">
+                        <label for="origen_predefinido" class="form-label">🏢 Origen del recorrido</label>
+                        <select id="origen_predefinido" name="origen_predefinido" class="form-select"
+                                onchange="toggleOrigenCustom()">
+                            <option value="">— Selecciona una dirección —</option>
+                            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
+                                Bodega Laguna Grande
+                            </option>
+                            <option value="Díaz de Solís 1879, Concepción">
+                                Bodega Díaz de Solís
+                            </option>
+                            <option value="Camino Los Carros 1955, Concepción">
+                                Bodega Camino Los Carros
+                            </option>
+                            <option value="custom">Otra dirección...</option>
+                        </select>
+                    </div>
 
-        <div id="destino_custom_wrapper" style="display:none; margin-top: 5px;">
-            <label for="destino_custom">Dirección personalizada de destino:</label><br>
-            <input type="text"
-                   id="destino_custom"
-                   name="destino_custom"
-                   placeholder="Calle, número, comuna"
-                   style="width: 100%; max-width: 400px;"
-                   value="">
-            <br><br>
+                    <div id="origen_custom_wrapper" style="display:none;">
+                        <div class="form-group">
+                            <label for="origen_custom" class="form-label">Dirección personalizada de origen</label>
+                            <input type="text" id="origen_custom" name="origen_custom" class="form-input"
+                                   placeholder="Calle, número, comuna">
+                        </div>
+                    </div>
+
+                    <!-- Destino -->
+                    <div class="form-group">
+                        <label for="destino_predefinido" class="form-label">🏁 Fin del recorrido</label>
+                        <select id="destino_predefinido" name="destino_predefinido" class="form-select"
+                                onchange="toggleDestinoCustom()">
+                            <option value="same_origin">Volver a la misma bodega de origen</option>
+                            <option value="Avenida Laguna Grande 1120, Casa 36, San Pedro de la Paz">
+                                Terminar en Bodega Laguna Grande
+                            </option>
+                            <option value="Díaz de Solís 1879, Concepción">
+                                Terminar en Bodega Díaz de Solís
+                            </option>
+                            <option value="Camino Los Carros 1955, Concepción">
+                                Terminar en Bodega Camino Los Carros
+                            </option>
+                            <option value="custom">Otra dirección...</option>
+                        </select>
+                    </div>
+
+                    <div id="destino_custom_wrapper" style="display:none;">
+                        <div class="form-group">
+                            <label for="destino_custom" class="form-label">Dirección personalizada de destino</label>
+                            <input type="text" id="destino_custom" name="destino_custom" class="form-input"
+                                   placeholder="Calle, número, comuna">
+                        </div>
+                    </div>
+
+                    <!-- Rendimiento -->
+                    <div class="form-group">
+                        <label for="rendimiento_vehiculo" class="form-label">⛽ Rendimiento del vehículo</label>
+                        <input type="number" id="rendimiento_vehiculo" name="rendimiento_vehiculo" 
+                               class="form-input" step="0.1" min="1" 
+                               value="{{ rendimiento_vehiculo|default:12 }}">
+                        <p class="form-hint">Kilómetros por litro (km/L)</p>
+                    </div>
+
+                    <!-- Precio bencina -->
+                    <div class="form-group">
+                        <label for="precio_bencina" class="form-label">💰 Precio de la bencina</label>
+                        <input type="number" id="precio_bencina" name="precio_bencina" 
+                               class="form-input" step="1" min="0" 
+                               value="{{ precio_bencina }}">
+                        <p class="form-hint">Pesos chilenos por litro (CLP/L)</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        🚀 Optimizar ruta
+                    </button>
+                    {% else %}
+                    <div style="text-align: center; padding: 32px; color: var(--text-muted);">
+                        <p>📍 No hay puntos de entrega para optimizar.</p>
+                        <p>Agrega al menos un punto para comenzar.</p>
+                    </div>
+                    {% endif %}
+                </form>
+
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary" onclick="clearMap()">
+                        🧹 Limpiar mapa
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <h4>Rendimiento del vehículo</h4>
-        <label for="rendimiento_vehiculo">Rendimiento estimado (km/L):</label><br>
-        <input type="number"
-               id="rendimiento_vehiculo"
-               name="rendimiento_vehiculo"
-               step="0.1"
-               min="1"
-               style="max-width: 200px;"
-               value="{{ rendimiento_vehiculo|default:12 }}">
-        <small>(por defecto se usa 12 km/L, puedes ajustarlo según el vehículo)</small>
-
-        <br><br>
-
-        <h4>Precio de la bencina</h4>
-        <label for="precio_bencina">Precio de bencina (CLP/L):</label><br>
-        <input type="number"
-               id="precio_bencina"
-               name="precio_bencina"
-               step="1"
-               min="0"
-               style="max-width: 200px;"
-               value="{{ precio_bencina }}">
-        <small>(puedes modificarlo cuando cambie el precio; por defecto el valor es $1250)</small>
-
-        <br><br>
-
-        <button type="submit">Optimizar Ruta</button>
-    </form>
-
-    {# FORM PARA BORRAR TODOS LOS PUNTOS DE LA BD #}
-    <form method="post" action="{% url 'borrar_puntos' %}">
-        {% csrf_token %}
-        <button type="button" onclick="borrarTodosPuntos('{% url 'borrar_puntos' %}')">
-            Borrar todos los puntos de entrega
-        </button>
-    </form>
-
-    {# BOTÓN PARA LIMPIAR SOLO EL MAPA (RUTA + MARCADORES) #}
-    <button type="button" onclick="clearMap()" style="margin-top: 10px;">
-        Limpiar mapa (ruta y marcadores)
-    </button>
-
-    {# RESULTADOS DE LA OPTIMIZACIÓN #}
+    <!-- Resultados de optimización -->
     {% if total_distance_km is not None %}
-        <div class="alert-success">
-            {% if direccion_origen %}
-                <p><strong>Origen usado:</strong> {{ direccion_origen }}</p>
-            {% endif %}
-            {% if direccion_destino %}
-                <p><strong>Destino usado:</strong> {{ direccion_destino }}</p>
-            {% endif %}
-            {% if rendimiento_vehiculo %}
-                <p><strong>Rendimiento usado:</strong> {{ rendimiento_vehiculo }} km/L</p>
-            {% endif %}
-            <p><strong>Distancia Total Optimizada:</strong> {{ total_distance_km }} km</p>
-            <p><strong>Consumo Estimado de Bencina:</strong> {{ fuel_consumed_liters }} litros</p>
-            {% if fuel_cost_clp is not None %}
-                <p><strong>Precio usado:</strong> {{ precio_bencina }} CLP/L</p>
-                <p><strong>Costo Estimado del Viaje:</strong> {{ fuel_cost_clp|floatformat:0 }} CLP</p>
-            {% endif %}
+    <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div style="flex: 1;">
+            <strong style="display: block; margin-bottom: 12px; font-size: 16px;">
+                Ruta optimizada exitosamente
+            </strong>
+            
+            <div class="results-grid">
+                {% if direccion_origen %}
+                <div class="result-item">
+                    <div class="result-label">Origen</div>
+                    <div style="font-size: 14px; color: #047857; margin-top: 4px;">
+                        {{ direccion_origen }}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if direccion_destino %}
+                <div class="result-item">
+                    <div class="result-label">Destino</div>
+                    <div style="font-size: 14px; color: #047857; margin-top: 4px;">
+                        {{ direccion_destino }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="result-item">
+                    <div class="result-label">Distancia total</div>
+                    <div class="result-value">{{ total_distance_km }} km</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-label">Consumo estimado</div>
+                    <div class="result-value">{{ fuel_consumed_liters }} L</div>
+                </div>
+
+                {% if rendimiento_vehiculo %}
+                <div class="result-item">
+                    <div class="result-label">Rendimiento usado</div>
+                    <div class="result-value">{{ rendimiento_vehiculo }} km/L</div>
+                </div>
+                {% endif %}
+
+                {% if fuel_cost_clp is not None %}
+                <div class="result-item">
+                    <div class="result-label">Precio bencina</div>
+                    <div class="result-value">$ {{ precio_bencina }}</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-label">Costo total viaje</div>
+                    <div class="result-value">$ {{ fuel_cost_clp|floatformat:0 }}</div>
+                </div>
+                {% endif %}
+            </div>
         </div>
+    </div>
     {% endif %}
 
-    <hr>
+    <!-- Mapa -->
+    <div class="map-card">
+        <div id="map"></div>
+    </div>
 
-    <div id="map"></div>
+</div>
 {% endblock content %}
 
 {% block extra_js %}
-    <!-- Variables para el mapa -->
     <script>
         var google_maps_api_key = "{{ google_maps_api_key }}";
         var puntos_entrega_data = JSON.parse('{{ puntos_entrega_json|escapejs }}');
@@ -300,9 +730,20 @@
 
         console.log("origen_coords:", origen_coords);
         console.log("destino_coords:", destino_coords);
+
+        function toggleOrigenCustom() {
+            var select = document.getElementById('origen_predefinido');
+            var wrapper = document.getElementById('origen_custom_wrapper');
+            wrapper.style.display = select.value === 'custom' ? 'block' : 'none';
+        }
+
+        function toggleDestinoCustom() {
+            var select = document.getElementById('destino_predefinido');
+            var wrapper = document.getElementById('destino_custom_wrapper');
+            wrapper.style.display = select.value === 'custom' ? 'block' : 'none';
+        }
     </script>
     
-    <!-- Google Maps API -->
     <script defer
             src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap">
     </script>

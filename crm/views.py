@@ -13,6 +13,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, TruncMonth
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from datetime import timedelta
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
@@ -376,37 +377,61 @@ def buscar_cliente_telefono(request):
     )
 
 
-@login_required
-def buscar_cliente_por_nombre(request):
-    cliente = None
-    query = ""
 
-    if request.method == "POST":
-        query = (request.POST.get("nombre") or "").strip()
-        if query:
-            cliente = (
-                Cliente.objects.filter(nombre__icontains=query)
-                .order_by("id")
-                .first()
-            )
-
-    return render(
-        request,
-        "crm/buscar_cliente_nombre.html",
-        {"cliente": cliente, "query": query},
-    )
 
 
 # -------------------------
 # DASHBOARD (KPIs + gráficos)
 # -------------------------
+from django.utils.dateparse import parse_date
+from django.utils import timezone
+from datetime import timedelta
+# ... resto de tus imports
+
 @login_required
 def dashboard(request):
     hoy = timezone.localdate()
-    inicio_mes = hoy.replace(day=1)
-    desde = inicio_mes - timezone.timedelta(days=180)
+    
+    # ============================================
+    # SISTEMA DE FILTROS DE PERÍODO
+    # ============================================
+    dias = request.GET.get('dias', None)
+    desde_param = request.GET.get('desde', None)
+    hasta_param = request.GET.get('hasta', None)
+    
+    # Si hay parámetro 'dias', calcular desde
+    if dias:
+        try:
+            desde = hoy - timedelta(days=int(dias))
+            hasta = hoy
+        except (ValueError, TypeError):
+            # Si el parámetro es inválido, usar default
+            inicio_mes = hoy.replace(day=1)
+            desde = inicio_mes - timedelta(days=180)
+            hasta = hoy
+    # Si hay fechas específicas, usarlas
+    elif desde_param and hasta_param:
+        desde = parse_date(desde_param) if desde_param else None
+        hasta = parse_date(hasta_param) if hasta_param else None
+        
+        # Si parse_date falla o fechas inválidas, usar default
+        if not desde or not hasta:
+            inicio_mes = hoy.replace(day=1)
+            desde = inicio_mes - timedelta(days=180)
+            hasta = hoy
+        # Validar que desde no sea mayor que hasta
+        elif desde > hasta:
+            desde, hasta = hasta, desde
+    # Sin filtros: usar últimos 180 días por defecto
+    else:
+        inicio_mes = hoy.replace(day=1)
+        desde = inicio_mes - timedelta(days=180)
+        hasta = hoy
 
-    ventas = Venta.objects.filter(fecha__date__gte=desde)
+    # ============================================
+    # CONSULTAS CON EL PERÍODO FILTRADO
+    # ============================================
+    ventas = Venta.objects.filter(fecha__date__gte=desde, fecha__date__lte=hasta)
     ventas_normales = ventas.exclude(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
 
     ingresos = ventas_normales.aggregate(s=Sum("monto_total"))["s"] or Decimal("0")
@@ -463,7 +488,7 @@ def dashboard(request):
 
     top_productos_qs = (
         VentaItem.objects
-        .filter(venta__fecha__date__gte=desde)
+        .filter(venta__fecha__date__gte=desde, venta__fecha__date__lte=hasta)
         .exclude(venta__tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
         .select_related('producto')
         .values("producto__nombre")
@@ -475,17 +500,22 @@ def dashboard(request):
     prod_kilos = [float(p["kilos"] or 0) for p in top_productos_qs]
 
     context = {
-        "desde": desde,
-        "hoy": hoy,
+        # Fechas para el template (formato string para inputs de fecha)
+        "desde": desde.strftime('%Y-%m-%d'),
+        "hoy": hasta.strftime('%Y-%m-%d'),
+        
+        # KPIs
         "kpi_ingresos": ingresos,
         "kpi_kilos": kilos,
         "kpi_n_ventas": n_ventas,
         "kpi_ticket": ticket_prom,
 
+        # Datos para tablas
         "serie": list(serie_qs),
         "por_canal": list(por_canal_qs),
         "top_productos": list(top_productos_qs),
 
+        # JSON para gráficos
         "labels_mes_json": json.dumps(labels_mes),
         "ingresos_mes_json": json.dumps(ingresos_mes),
         "kilos_mes_json": json.dumps(kilos_mes),
@@ -499,7 +529,6 @@ def dashboard(request):
     }
     return render(request, "crm/dashboard.html", context)
 
-
 # -------------------------
 # RESUMEN MENSUAL
 # -------------------------
@@ -510,12 +539,15 @@ def resumen_mensual(request):
     default_desde = inicio_mes - timedelta(days=180)
     default_hasta = hoy
 
+    # Obtener parámetros de fecha del request
     desde_str = (request.GET.get("desde") or "").strip()
     hasta_str = (request.GET.get("hasta") or "").strip()
 
+    # Parsear fechas o usar defaults
     desde = parse_date(desde_str) if desde_str else default_desde
     hasta = parse_date(hasta_str) if hasta_str else default_hasta
 
+    # Validaciones
     if not desde:
         desde = default_desde
     if not hasta:
@@ -523,9 +555,11 @@ def resumen_mensual(request):
     if desde > hasta:
         desde, hasta = hasta, desde
 
+    # Obtener costo por kg de la importación activa
     imp_activa = Importacion.objects.filter(activo=True).order_by("-fecha").first()
     costo_por_kg = imp_activa.costo_por_kg if imp_activa else Decimal("0")
 
+    # Consulta de ventas agrupadas por mes
     ventas_qs = (
         Venta.objects
         .filter(fecha__date__gte=desde, fecha__date__lte=hasta)
@@ -552,6 +586,7 @@ def resumen_mensual(request):
         .order_by("-mes")
     )
 
+    # Consulta de gastos agrupados por mes
     gastos_qs = (
         GastoOperacional.objects
         .filter(fecha__gte=desde, fecha__lte=hasta)
@@ -566,8 +601,10 @@ def resumen_mensual(request):
         )
     )
 
+    # Crear mapa de gastos por mes
     gastos_map = {r["mes"]: (r["gastos"] or Decimal("0")) for r in gastos_qs}
 
+    # Construir filas con cálculos
     filas = []
     for r in ventas_qs:
         mes = r["mes"]
@@ -598,6 +635,7 @@ def resumen_mensual(request):
             "utilidad": utilidad,
         })
 
+    # Calcular totales
     totales = {
         "kilos": sum((f["kilos"] for f in filas), Decimal("0")),
         "ventas_brutas": sum((f["ventas_brutas"] for f in filas), Decimal("0")),

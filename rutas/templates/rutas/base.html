@@ -34,11 +34,7 @@
              class="{% if request.resolver_match.url_name == 'buscar_cliente_telefono' %}active{% endif %}">
              🔎 Buscar teléfono
           </a>
-
-          <a href="{% url 'crm:buscar_cliente_nombre' %}"
-            class="{% if request.resolver_match.url_name == 'buscar_cliente_nombre' %}active{% endif %}">
-            👤 Buscar por Nombre
-          </a>
+          
           <a href="{% url 'crm:resumen_mensual' %}"
             class="{% if request.resolver_match.url_name == 'resumen_mensual' %}active{% endif %}">
             📊 Resumen mensual

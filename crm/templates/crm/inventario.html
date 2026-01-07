@@ -1,98 +1,508 @@
 {% extends "rutas/base.html" %}
 {% block title %}Inventario (kg){% endblock %}
 
+{% block extra_head %}
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --bg-page: #f8fafc;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.inventory-kg-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Header */
+.page-header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+}
+
+.page-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-header h1::before {
+  content: "⚖️";
+  font-size: 36px;
+  -webkit-text-fill-color: initial;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* Card principal */
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+/* Panel de control */
+.control-panel {
+  background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
+}
+
+.control-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+
+.control-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  flex: 1;
+}
+
+.control-header::before {
+  content: "🎛️";
+  font-size: 24px;
+}
+
+.control-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.form-input {
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+.btn-outline {
+  background: white;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn-outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Tabla de métricas */
+.metrics-card {
+  background: white;
+  overflow: hidden;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.metrics-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.metrics-table tbody tr:hover {
+  background: rgba(79, 70, 229, 0.02);
+}
+
+.metrics-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.metrics-table th {
+  text-align: left;
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 45%;
+  background: #fafafa;
+}
+
+.metrics-table td {
+  padding: 16px;
+  font-size: 16px;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+/* Filas especiales */
+.row-highlight {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.row-highlight th,
+.row-highlight td {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.row-warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.05) 100%);
+}
+
+.row-warning th::before {
+  content: "⏰ ";
+  font-size: 18px;
+}
+
+.row-info {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* Valores destacados */
+.value-primary {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.value-success {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.value-warning {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.value-danger {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.value-large {
+  font-size: 20px;
+}
+
+/* Badge de días */
+.days-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.days-badge-info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.days-badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Alerta crítica */
+.alert {
+  padding: 20px 24px;
+  border-radius: 12px;
+  display: flex;
+  align-items: start;
+  gap: 16px;
+  box-shadow: var(--shadow-md);
+  animation: pulseAlert 2s ease-in-out infinite;
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  border-left: 6px solid var(--danger);
+}
+
+.alert-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.alert-message {
+  font-size: 15px;
+  color: #7f1d1d;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@keyframes pulseAlert {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  }
+}
+
+/* Iconos para métricas */
+.metric-icon {
+  margin-right: 8px;
+  opacity: 0.7;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 24px;
+  }
+  
+  .control-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .metrics-table th,
+  .metrics-table td {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .metrics-table th {
+    width: 40%;
+  }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Inventario (MVP por kilos)</h2>
+<div class="inventory-kg-container">
 
-<form method="get" style="margin: 12px 0; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
-  <div>
-    <label><strong>Ventana consumo (días)</strong></label><br>
-    <input type="number" name="dias" value="{{ dias }}" min="1" style="width:120px;">
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Inventario por Kilogramos</h1>
+    <p class="page-subtitle">Control de stock y planificación de pedidos basado en consumo real</p>
   </div>
-  <button class="btn btn-primary" type="submit">Aplicar</button>
-  <a class="btn btn-primary" href="?dias=30">30 días</a>
-  <a class="btn btn-primary" href="?dias=60">60 días</a>
-  <a class="btn btn-primary" href="?dias=90">90 días</a>
-</form>
 
-<div class="table-wrap">
-  <table>
-    <tbody>
-      <tr>
-        <th style="text-align:left;">Hoy</th>
-        <td>{{ hoy|date:"d-m-Y" }}</td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Kilos ingresados (total)</th>
-        <td>{{ kilos_ingresados|floatformat:0 }} kg</td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Kilos vendidos (total)</th>
-        <td>{{ kilos_vendidos_total|floatformat:0 }} kg</td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Stock actual</th>
-        <td><strong>{{ stock_kg|floatformat:0 }} kg</strong></td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Kilos vendidos últimos {{ dias }} días</th>
-        <td>{{ kilos_vendidos_ventana|floatformat:0 }} kg</td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Consumo promedio diario</th>
-        <td>{{ consumo_diario|floatformat:1 }} kg/día</td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Días de stock estimados</th>
-        <td>
-          {% if dias_stock %}
-            <strong>{{ dias_stock|floatformat:1 }}</strong> días
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Fecha estimada de agotamiento</th>
-        <td>
-          {% if fecha_reorden_estimada %}
-            <strong>{{ fecha_reorden_estimada|date:"d-m-Y" }}</strong>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      <tr style="background-color: #fff3cd;">
-        <th style="text-align:left;">⏰ Fecha sugerida para hacer orden</th>
-        <td>
-          {% if fecha_orden_sugerida %}
-            <strong style="color: #856404;">{{ fecha_orden_sugerida|date:"d-m-Y" }}</strong>
-            {% if dias_hasta_ordenar %}
-              {% if dias_hasta_ordenar > 0 %}
-                (en {{ dias_hasta_ordenar|floatformat:0 }} días)
-              {% else %}
-                <span style="color: #dc3545;">(¡ORDENAR YA!)</span>
+  <!-- Panel de control -->
+  <div class="card control-panel">
+    <div class="control-header">
+      <h3>Configuración de análisis</h3>
+    </div>
+    
+    <form method="get" class="control-form">
+      <div class="form-group">
+        <label class="form-label">Ventana de consumo</label>
+        <input type="number" name="dias" value="{{ dias }}" min="1" max="365" class="form-input">
+      </div>
+      
+      <button class="btn btn-primary" type="submit">✓ Aplicar</button>
+      <a class="btn btn-outline" href="?dias=30">30 días</a>
+      <a class="btn btn-outline" href="?dias=60">60 días</a>
+      <a class="btn btn-outline" href="?dias=90">90 días</a>
+    </form>
+  </div>
+
+  <!-- Tabla de métricas -->
+  <div class="card metrics-card">
+    <table class="metrics-table">
+      <tbody>
+        <tr>
+          <th><span class="metric-icon">📅</span>Fecha actual</th>
+          <td>{{ hoy|date:"d-m-Y" }}</td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">📥</span>Kilos ingresados (histórico)</th>
+          <td>{{ kilos_ingresados|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">📤</span>Kilos vendidos (histórico)</th>
+          <td>{{ kilos_vendidos_total|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr class="row-highlight">
+          <th><span class="metric-icon">📦</span>Stock actual disponible</th>
+          <td class="value-primary value-large">{{ stock_kg|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr class="row-info">
+          <th><span class="metric-icon">📊</span>Kilos vendidos (últimos {{ dias }} días)</th>
+          <td class="value-success">{{ kilos_vendidos_ventana|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">📈</span>Consumo promedio diario</th>
+          <td>{{ consumo_diario|floatformat:1 }} kg/día</td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">⏱️</span>Días de stock estimados</th>
+          <td>
+            {% if dias_stock %}
+              <span class="{% if dias_stock < dias_importacion %}value-danger{% elif dias_stock < 30 %}value-warning{% else %}value-success{% endif %} value-large">
+                {{ dias_stock|floatformat:1 }} días
+              </span>
+              {% if dias_stock < dias_importacion %}
+                <span class="days-badge days-badge-danger">¡Stock crítico!</span>
+              {% elif dias_stock < 30 %}
+                <span class="days-badge days-badge-info">Stock bajo</span>
               {% endif %}
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
             {% endif %}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th style="text-align:left;">Lead time de importación</th>
-        <td>{{ dias_importacion }} días</td>
-      </tr>
-    </tbody>
-  </table>
+          </td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">📉</span>Fecha estimada de agotamiento</th>
+          <td>
+            {% if fecha_reorden_estimada %}
+              <span class="{% if dias_stock < dias_importacion %}value-danger{% else %}value-warning{% endif %}">
+                {{ fecha_reorden_estimada|date:"d-m-Y" }}
+              </span>
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        
+        <tr class="row-warning">
+          <th>Fecha sugerida para ordenar</th>
+          <td>
+            {% if fecha_orden_sugerida %}
+              <span class="value-warning value-large">{{ fecha_orden_sugerida|date:"d-m-Y" }}</span>
+              {% if dias_hasta_ordenar %}
+                {% if dias_hasta_ordenar > 0 %}
+                  <span class="days-badge days-badge-info">
+                    En {{ dias_hasta_ordenar|floatformat:0 }} días
+                  </span>
+                {% else %}
+                  <span class="days-badge days-badge-danger">
+                    ¡ORDENAR YA!
+                  </span>
+                {% endif %}
+              {% endif %}
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        
+        <tr>
+          <th><span class="metric-icon">🚢</span>Lead time de importación</th>
+          <td>{{ dias_importacion }} días</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alerta crítica -->
+  {% if alerta_reorden %}
+  <div class="alert alert-danger">
+    <div class="alert-icon">🚨</div>
+    <div class="alert-content">
+      <h4 class="alert-title">Alerta crítica de inventario</h4>
+      <p class="alert-message">
+        Te quedan <strong>{{ dias_stock|floatformat:1 }} días de stock</strong>. 
+        Considerando que tu importación demora <strong>{{ dias_importacion }} días</strong>, 
+        debes hacer tu orden <strong>AHORA</strong> (fecha sugerida: <strong>{{ fecha_orden_sugerida|date:"d-m-Y" }}</strong>).
+        <br><br>
+        Si no ordenas pronto, podrías quedarte sin stock antes de que llegue tu próxima importación.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
-
-{% if alerta_reorden %}
-  <p style="margin-top:12px; padding:10px; border:1px solid #dc3545; background-color: #f8d7da; border-radius:8px; color: #721c24;">
-    🚨 <strong>ALERTA CRÍTICA:</strong> Te quedan <strong>{{ dias_stock|floatformat:1 }}</strong> días de stock. 
-    Considerando que tu importación demora {{ dias_importacion }} días, 
-    <strong>debes hacer tu orden AHORA</strong> (fecha sugerida: {{ fecha_orden_sugerida|date:"d-m-Y" }}).
-  </p>
-{% endif %}
-
 {% endblock %}

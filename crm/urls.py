@@ -23,7 +23,7 @@ urlpatterns = [
 
     # Buscadores
     path("buscar-telefono/", views.buscar_cliente_telefono, name="buscar_cliente_telefono"),
-    path("buscar-nombre/", views.buscar_cliente_por_nombre, name="buscar_cliente_nombre"),
+    
 
     # ✅ Resumen mensual
     path("resumen-mensual/", views.resumen_mensual, name="resumen_mensual"),

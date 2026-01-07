@@ -1,113 +1,540 @@
 {% extends "rutas/base.html" %}
 {% block title %}Resumen mensual{% endblock %}
 
+{% block extra_head %}
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --bg-page: #f8fafc;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.resumen-container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Header */
+.page-header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+}
+
+.page-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-header h1::before {
+  content: "📊";
+  font-size: 36px;
+  -webkit-text-fill-color: initial;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* Card principal */
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+/* Filtros */
+.filters-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+
+.filters-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  flex: 1;
+}
+
+.filters-icon {
+  font-size: 24px;
+}
+
+.filters-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+.btn-outline {
+  background: white;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn-outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Info bar */
+.info-bar {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  font-size: 20px;
+}
+
+.info-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.btn-secondary-link {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+  color: white;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btn-secondary-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+/* Tabla mejorada */
+.table-card {
+  background: white;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1400px;
+  font-size: 13px;
+}
+
+.data-table thead {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+}
+
+.data-table thead th {
+  padding: 16px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 3px solid var(--primary);
+  white-space: nowrap;
+}
+
+.data-table thead th:first-child {
+  border-radius: 12px 0 0 0;
+}
+
+.data-table thead th:last-child {
+  border-radius: 0 12px 0 0;
+}
+
+.data-table tbody td {
+  padding: 14px 12px;
+  color: var(--text-dark);
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+  transform: scale(1.01);
+}
+
+.data-table tfoot {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-weight: 700;
+}
+
+.data-table tfoot th {
+  padding: 16px 12px;
+  color: var(--text-dark);
+  border-top: 3px solid var(--primary);
+  font-size: 13px;
+}
+
+/* Columnas específicas */
+.col-mes {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.col-center {
+  text-align: center !important;
+}
+
+.col-right {
+  text-align: right !important;
+}
+
+.col-highlight {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.col-positive {
+  color: var(--success);
+}
+
+.col-negative {
+  color: var(--danger);
+}
+
+/* Badges de valores */
+.value-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-profit {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.badge-cost {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+.badge-expense {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+/* Estado vacío */
+.empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--text-muted);
+}
+
+.empty-state::before {
+  content: "📊";
+  display: block;
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.empty-state strong {
+  display: block;
+  font-size: 18px;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 24px;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .data-table {
+    font-size: 11px;
+  }
+  
+  .data-table thead th,
+  .data-table tbody td,
+  .data-table tfoot th {
+    padding: 10px 8px;
+  }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Resumen mensual</h2>
-<form method="get" style="margin: 12px 0; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
-  <div>
-    <label><strong>Desde</strong></label><br>
-    <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}">
+<div class="resumen-container">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Resumen Financiero Mensual</h1>
+    <p class="page-subtitle">Análisis detallado de ventas, costos y rentabilidad por período</p>
   </div>
 
-  <div>
-    <label><strong>Hasta</strong></label><br>
-    <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
+  <!-- Filtros -->
+  <div class="card filters-card">
+    <div class="filters-header">
+      <span class="filters-icon">🔍</span>
+      <h3>Filtrar período de análisis</h3>
+    </div>
+    
+    <form method="get" class="filters-form">
+      <div class="filters-grid">
+        <div class="form-group">
+          <label class="form-label">Fecha inicio</label>
+          <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Fecha fin</label>
+          <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">📊 Aplicar filtro</button>
+        </div>
+        
+        <div class="form-group">
+          <a href="{% url 'crm:resumen_mensual' %}" class="btn btn-outline">🔄 Restablecer</a>
+        </div>
+      </div>
+    </form>
   </div>
 
-  <button class="btn btn-primary" type="submit">Aplicar</button>
+  <!-- Info bar -->
+  <div class="info-bar">
+    <div class="info-item">
+      <span class="info-icon">📅</span>
+      <div>
+        <div class="info-label">Período</div>
+        <div class="info-value">{{ desde|date:"d-m-Y" }} → {{ hoy|date:"d-m-Y" }}</div>
+      </div>
+    </div>
 
-  <a class="btn btn-primary" href="{% url 'crm:resumen_mensual' %}">
-    Últimos 6 meses
-  </a>
-</form>
+    <div class="info-item">
+      <span class="info-icon">💰</span>
+      <div>
+        <div class="info-label">Costo promedio/kg</div>
+        <div class="info-value">$ {{ costo_por_kg|floatformat:0 }}</div>
+      </div>
+    </div>
 
-<div style="margin-bottom:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-  <a class="btn btn-secondary" href="{% url 'crm:ventas_list' %}">Ver ventas</a>
+    <a href="{% url 'crm:ventas_list' %}" class="btn-secondary-link">
+      📋 Ver todas las ventas
+    </a>
+  </div>
 
-  <span style="opacity:.8;">
-    Desde: <strong>{{ desde|date:"d-m-Y" }}</strong> —
-    Hoy: <strong>{{ hoy|date:"d-m-Y" }}</strong> —
-    Costo prom/kg: <strong>$ {{ costo_por_kg|floatformat:0 }}</strong>
-  </span>
+  <!-- Tabla -->
+  <div class="card table-card">
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="col-center">Ventas</th>
+            <th class="col-right">Kilos</th>
+            <th class="col-right">Ventas brutas</th>
+            <th class="col-right">Notas crédito</th>
+            <th class="col-right">Ventas netas</th>
+            <th class="col-right">Neto real</th>
+            <th class="col-right">Costo estimado</th>
+            <th class="col-right">Margen bruto</th>
+            <th class="col-right">Gastos</th>
+            <th class="col-right">Utilidad</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for f in filas %}
+          <tr>
+            <td class="col-mes">{{ f.mes|date:"m-Y" }}</td>
+            <td class="col-center">{{ f.cantidad_ventas }}</td>
+            <td class="col-right">{{ f.kilos|floatformat:2 }}</td>
+            <td class="col-right">$ {{ f.ventas_brutas|floatformat:0 }}</td>
+            <td class="col-right col-negative">$ {{ f.notas_credito|floatformat:0 }}</td>
+            <td class="col-right">$ {{ f.ventas_netas|floatformat:0 }}</td>
+            <td class="col-right col-highlight">$ {{ f.neto|floatformat:0 }}</td>
+            <td class="col-right">
+              <span class="value-badge badge-cost">$ {{ f.costo|floatformat:0 }}</span>
+            </td>
+            <td class="col-right col-highlight col-positive">$ {{ f.margen_bruto|floatformat:0 }}</td>
+            <td class="col-right">
+              <span class="value-badge badge-expense">$ {{ f.gastos|floatformat:0 }}</span>
+            </td>
+            <td class="col-right col-highlight">
+              <span class="value-badge badge-profit">$ {{ f.utilidad|floatformat:0 }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="11">
+              <div class="empty-state">
+                <strong>Sin datos disponibles</strong>
+                <p>No hay información para el período seleccionado</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+        <tfoot>
+          <tr>
+            <th>TOTALES</th>
+            <th>—</th>
+            <th class="col-right">{{ totales.kilos|floatformat:2 }}</th>
+            <th class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.neto|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.costo|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.margen_bruto|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.gastos|floatformat:0 }}</th>
+            <th class="col-right">$ {{ totales.utilidad|floatformat:0 }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
 </div>
-
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Mes</th>
-        <th>Ventas (cant.)</th>
-        <th style="text-align:right;">Kilos</th>
-
-        <th style="text-align:right;">Bruto ($)</th>
-        <th style="text-align:right;">Notas ($)</th>
-
-        <th style="text-align:right;">Ventas netas ($)</th>
-        <th style="text-align:right;">Neto real ($)</th>
-
-        <th style="text-align:right;">Costo est. ($)</th>
-        <th style="text-align:right;">Margen bruto ($)</th>
-
-        <th style="text-align:right;">Gastos ($)</th>
-        <th style="text-align:right;">Utilidad ($)</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {% for f in filas %}
-      <tr>
-        <td>{{ f.mes|date:"m-Y" }}</td>
-        <td style="text-align:center;">{{ f.cantidad_ventas }}</td>
-
-        <td style="text-align:right;">{{ f.kilos|floatformat:2 }}</td>
-
-        <td style="text-align:right;">$ {{ f.ventas_brutas|floatformat:0 }}</td>
-        <td style="text-align:right;">$ {{ f.notas_credito|floatformat:0 }}</td>
-
-        <td style="text-align:right;">$ {{ f.ventas_netas|floatformat:0 }}</td>
-        <td style="text-align:right;"><strong>$ {{ f.neto|floatformat:0 }}</strong></td>
-
-        <td style="text-align:right;">$ {{ f.costo|floatformat:0 }}</td>
-
-        <td style="text-align:right;">
-          <strong>$ {{ f.margen_bruto|floatformat:0 }}</strong>
-        </td>
-
-        <td style="text-align:right;">$ {{ f.gastos|floatformat:0 }}</td>
-
-        <td style="text-align:right;">
-          <strong>$ {{ f.utilidad|floatformat:0 }}</strong>
-        </td>
-      </tr>
-
-      {% empty %}
-      <tr>
-        <td colspan="11">Sin datos.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-
-    <tfoot>
-      <tr>
-        <th>Totales</th>
-        <th>—</th>
-
-        <th style="text-align:right;">{{ totales.kilos|floatformat:2 }}</th>
-
-        <th style="text-align:right;">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
-        <th style="text-align:right;">$ {{ totales.notas_credito|floatformat:0 }}</th>
-
-        <th style="text-align:right;">$ {{ totales.ventas_netas|floatformat:0 }}</th>
-        <th style="text-align:right;"><strong>$ {{ totales.neto|floatformat:0 }}</strong></th>
-
-        <th style="text-align:right;">$ {{ totales.costo|floatformat:0 }}</th>
-        <th style="text-align:right;"><strong>$ {{ totales.margen_bruto|floatformat:0 }}</strong></th>
-
-        <th style="text-align:right;">$ {{ totales.gastos|floatformat:0 }}</th>
-        <th style="text-align:right;"><strong>$ {{ totales.utilidad|floatformat:0 }}</strong></th>
-      </tr>
-    </tfoot>
-  </table>
-</div>
-
 {% endblock %}
