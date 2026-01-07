@@ -155,7 +155,7 @@
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_tipo_documento_display }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.numero_documento|default:"-" }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_canal_display }}</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.kilos_total|floatformat:2 }} kg</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.kilos_total|floatformat:0 }} kg</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${{ venta.monto_total|floatformat:0 }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">
                 <a href="{% url 'crm:venta_detalle' venta.id %}" 
