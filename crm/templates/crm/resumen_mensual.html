@@ -489,7 +489,7 @@ body {
           <tr>
             <td class="col-mes">{{ f.mes|date:"m-Y" }}</td>
             <td class="col-center">{{ f.cantidad_ventas }}</td>
-            <td class="col-right">{{ f.kilos|floatformat:2 }}</td>
+            <td class="col-right">{{ f.kilos|floatformat:0 }}</td>
             <td class="col-right">$ {{ f.ventas_brutas|floatformat:0 }}</td>
             <td class="col-right col-negative">$ {{ f.notas_credito|floatformat:0 }}</td>
             <td class="col-right">$ {{ f.ventas_netas|floatformat:0 }}</td>
@@ -521,7 +521,7 @@ body {
           <tr>
             <th>TOTALES</th>
             <th>—</th>
-            <th class="col-right">{{ totales.kilos|floatformat:2 }}</th>
+            <th class="col-right">{{ totales.kilos|floatformat:0 }}</th>
             <th class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
             <th class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
             <th class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
