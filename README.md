@@ -12,6 +12,7 @@ bash# Crear carpeta y hacer backup
 mkdir -p backups
 cp db.sqlite3 backups/backup_$(date +%Y%m%d_%H%M%S).db
 
+source venv/bin/activate
 
 Para ajustar codigo a pantalla coloca crt+shif+p y selecciona toggel word wrap, se ajustará el codigo a la pantalla.
 
