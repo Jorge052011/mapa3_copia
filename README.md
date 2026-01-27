@@ -17,3 +17,12 @@ source venv/bin/activate
 Para ajustar codigo a pantalla coloca crt+shif+p y selecciona toggel word wrap, se ajustará el codigo a la pantalla.
 
 comando para copiar los programas que use pip freeze > requirements.txt
+
+
+para copiar del servidor a girhub
+
+cd ~/proyectos/mapa3_copia
+cp db.sqlite3 backups/backup_$(date +%Y%m%d_%H%M%S).db
+git add backups/
+git commit -m "Respaldo $(date +%Y%m%d)"
+git push origin main
