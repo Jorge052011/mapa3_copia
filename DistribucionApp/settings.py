@@ -1,3 +1,4 @@
+
 """
 Django settings for DistribucionApp project.
 """
@@ -22,6 +23,7 @@ DEBUG = os.getenv("DEBUG", "True") == "True"
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
+    "192.168.0.29",
     ".app.github.dev",        # Codespaces
     ".githubpreview.dev",     # Codespaces
 ]
