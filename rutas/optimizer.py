@@ -3,6 +3,7 @@ import requests
 import json
 from django.conf import settings
 import itertools
+import time
 
 
 # --- PARTE 1: Obtener Distancias/Tiempos de Google Maps ---
@@ -12,6 +13,9 @@ def get_distance_matrix(points, origin_coords, api_key, dest_coords=None):
     - origen
     - todos los puntos de entrega
     - (opcional) destino
+    
+    CORREGIDO: Divide la solicitud en bloques para no exceder 
+    el límite de 100 elementos de Google Maps API
     """
     all_points_coords = [f"{origin_coords['latitud']},{origin_coords['longitud']}"]
 
@@ -21,42 +25,78 @@ def get_distance_matrix(points, origin_coords, api_key, dest_coords=None):
     if dest_coords is not None:
         all_points_coords.append(f"{dest_coords['latitud']},{dest_coords['longitud']}")
 
-    origins_str = "|".join(all_points_coords)
-    destinations_str = origins_str
-
+    n = len(all_points_coords)
+    
+    # Inicializar matriz con infinitos
+    distance_matrix = [[float('inf')] * n for _ in range(n)]
+    
+    # Diagonal = 0 (distancia a sí mismo)
+    for i in range(n):
+        distance_matrix[i][i] = 0.0
+    
+    # LÍMITE DE GOOGLE MAPS: 100 elementos por solicitud
+    # Con origins×destinations, si tenemos N puntos:
+    # Para no exceder 100, dividimos en bloques de máx 10×10 = 100
+    MAX_LOCATIONS_PER_CALL = 10
+    
     url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-    params = {
-        "origins": origins_str,
-        "destinations": destinations_str,
-        "mode": "driving",
-        "key": api_key
-    }
-
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        if data['status'] == 'OK':
-            distance_matrix = []
-            for row_data in data['rows']:
-                row_distances = []
-                for element in row_data['elements']:
-                    if element['status'] == 'OK':
-                        row_distances.append(element['distance']['value'] / 1000)  # a km
-                    else:
-                        row_distances.append(float('inf'))
-                distance_matrix.append(row_distances)
-            return distance_matrix
-        else:
-            print(f"Error en Distance Matrix API: {data['status']} - {data.get('error_message', '')}")
-            return None
-    except requests.exceptions.RequestException as e:
-        print(f"Error de conexión con la API de Google Maps: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"Error al decodificar la respuesta JSON de la API: {e}")
-        return None
+    
+    # Dividir en bloques
+    for i in range(0, n, MAX_LOCATIONS_PER_CALL):
+        for j in range(0, n, MAX_LOCATIONS_PER_CALL):
+            # Bloque de orígenes
+            origins_block = all_points_coords[i:i + MAX_LOCATIONS_PER_CALL]
+            # Bloque de destinos
+            destinations_block = all_points_coords[j:j + MAX_LOCATIONS_PER_CALL]
+            
+            origins_str = "|".join(origins_block)
+            destinations_str = "|".join(destinations_block)
+            
+            params = {
+                "origins": origins_str,
+                "destinations": destinations_str,
+                "mode": "driving",
+                "key": api_key
+            }
+            
+            try:
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                if data['status'] == 'OK':
+                    # Procesar resultados del bloque
+                    for row_idx, row_data in enumerate(data['rows']):
+                        origin_global_idx = i + row_idx
+                        for col_idx, element in enumerate(row_data['elements']):
+                            dest_global_idx = j + col_idx
+                            
+                            if element['status'] == 'OK':
+                                # Convertir metros a kilómetros
+                                distance_km = element['distance']['value'] / 1000.0
+                                distance_matrix[origin_global_idx][dest_global_idx] = distance_km
+                            else:
+                                print(f"⚠️ Error en elemento [{origin_global_idx}][{dest_global_idx}]: {element['status']}")
+                                distance_matrix[origin_global_idx][dest_global_idx] = float('inf')
+                else:
+                    error_msg = data.get('error_message', 'Sin mensaje de error')
+                    print(f"❌ Error en Distance Matrix API: {data['status']} - {error_msg}")
+                    return None
+                
+                # Pausa entre solicitudes para evitar rate limiting
+                time.sleep(0.2)
+                
+            except requests.exceptions.Timeout:
+                print(f"⏱️ Timeout en solicitud de bloque [{i}:{i+MAX_LOCATIONS_PER_CALL}] x [{j}:{j+MAX_LOCATIONS_PER_CALL}]")
+                return None
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Error de conexión con Google Maps API: {e}")
+                return None
+            except json.JSONDecodeError as e:
+                print(f"❌ Error al decodificar JSON: {e}")
+                return None
+    
+    return distance_matrix
 
 
 # --- PARTE 2: TSP Solver con Nearest Neighbor + 2-opt ---
