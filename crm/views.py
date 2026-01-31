@@ -87,16 +87,17 @@ def clientes_list(request):
             pass
 
     # Orden
-    if orden == "kilos_asc":
+    if orden == "kilos_desc":
+        qs = qs.order_by("-kilos_acumulados", "-id")
+    elif orden == "kilos_asc":
         qs = qs.order_by("kilos_acumulados", "id")
     elif orden == "gasto_desc":
         qs = qs.order_by("-gasto_total", "-id")
     elif orden == "gasto_asc":
         qs = qs.order_by("gasto_total", "id")
-    elif orden == "id":
-        qs = qs.order_by("id")
     else:
-        qs = qs.order_by("-kilos_acumulados", "-id")
+        # Por defecto (cuando orden está vacío), ordenar por ID
+        qs = qs.order_by("id")
 
     clientes = list(qs)
 

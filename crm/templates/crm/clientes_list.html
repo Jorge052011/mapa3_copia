@@ -79,11 +79,11 @@
                 Ordenar por:
             </label>
             <select id="orden" name="orden" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="" {% if not f.orden %}selected{% endif %}>Kilos (mayor a menor)</option>
+                <option value="" {% if not f.orden %}selected{% endif %}>ID</option>
+                <option value="kilos_desc" {% if f.orden == "kilos_desc" %}selected{% endif %}>Kilos (mayor a menor)</option>
                 <option value="kilos_asc" {% if f.orden == "kilos_asc" %}selected{% endif %}>Kilos (menor a mayor)</option>
                 <option value="gasto_desc" {% if f.orden == "gasto_desc" %}selected{% endif %}>Gasto (mayor a menor)</option>
                 <option value="gasto_asc" {% if f.orden == "gasto_asc" %}selected{% endif %}>Gasto (menor a mayor)</option>
-                <option value="id" {% if f.orden == "id" %}selected{% endif %}>ID</option>
             </select>
         </div>
     </div>
