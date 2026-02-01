@@ -1,6 +1,6 @@
 # crm/views.py
 from decimal import Decimal
-from datetime import timedelta
+from datetime import timedelta, date
 import json
 import logging
 
@@ -10,12 +10,13 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import (
     Sum, Count, Max, Value, DecimalField, Q, DateField, F, ExpressionWrapper, Prefetch,
 )
-from django.db.models.functions import Coalesce, TruncMonth
+from django.db.models.functions import Coalesce, TruncMonth, TruncDate
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from datetime import timedelta
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
+from calendar import monthrange
 
 from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional
 from .forms import ClienteForm, VentaForm, VentaItemForm
@@ -44,10 +45,8 @@ def clientes_list(request):
     comuna = request.GET.get("comuna", "").strip()
     min_kilos = request.GET.get("min_kilos", "").strip()
     orden = request.GET.get("orden", "").strip()
-    # ✅ NUEVO: Búsqueda por nombre
     buscar = request.GET.get("buscar", "").strip()
 
-    # ✅ OPTIMIZACIÓN: prefetch ventas para evitar N+1
     qs = (
         Cliente.objects.all()
         .prefetch_related(
@@ -72,7 +71,6 @@ def clientes_list(request):
         )
     )
 
-    # ✅ NUEVO: Filtro por nombre
     if buscar:
         qs = qs.filter(nombre__icontains=buscar)
 
@@ -86,7 +84,6 @@ def clientes_list(request):
         except Exception:
             pass
 
-    # Orden
     if orden == "kilos_desc":
         qs = qs.order_by("-kilos_acumulados", "-id")
     elif orden == "kilos_asc":
@@ -96,16 +93,13 @@ def clientes_list(request):
     elif orden == "gasto_asc":
         qs = qs.order_by("gasto_total", "id")
     else:
-        # Por defecto (cuando orden está vacío), ordenar por ID
         qs = qs.order_by("id")
 
     clientes = list(qs)
 
-    # Segmento (filtrado en Python)
     if segmento:
         clientes = [c for c in clientes if getattr(c, "segmento", "") == segmento]
 
-    # ✅ PAGINACIÓN
     paginator = Paginator(clientes, 25)
     page_number = request.GET.get('page', 1)
     
@@ -131,7 +125,7 @@ def clientes_list(request):
             "comuna": comuna,
             "min_kilos": min_kilos,
             "orden": orden,
-            "buscar": buscar,  # ✅ NUEVO: Pasar al template
+            "buscar": buscar,
         },
     }
     return render(request, "crm/clientes_list.html", context)
@@ -191,13 +185,10 @@ def ventas_list(request):
     canal = request.GET.get("canal", "").strip()
     min_kilos = request.GET.get("min_kilos", "").strip()
     max_kilos = request.GET.get("max_kilos", "").strip()
-    # ✅ NUEVO: Búsqueda por nombre de cliente
     buscar_cliente = request.GET.get("buscar_cliente", "").strip()
 
-    # ✅ OPTIMIZACIÓN: select_related
     qs = Venta.objects.select_related("cliente").all()
 
-    # ✅ NUEVO: Filtro por nombre de cliente
     if buscar_cliente:
         qs = qs.filter(cliente__nombre__icontains=buscar_cliente)
 
@@ -224,7 +215,6 @@ def ventas_list(request):
     else:
         qs = qs.order_by("-id")
 
-    # ✅ PAGINACIÓN
     paginator = Paginator(qs, 25)
     page_number = request.GET.get('page', 1)
     
@@ -243,7 +233,7 @@ def ventas_list(request):
             "canal": canal,
             "min_kilos": min_kilos,
             "max_kilos": max_kilos,
-            "buscar_cliente": buscar_cliente,  # ✅ NUEVO: Pasar al template
+            "buscar_cliente": buscar_cliente,
         },
     }
     return render(request, "crm/ventas_list.html", context)
@@ -313,7 +303,6 @@ def venta_borrar(request, venta_id):
 # -----------------
 @login_required
 def venta_detalle(request, venta_id):
-    # ✅ OPTIMIZACIÓN: select_related
     venta = get_object_or_404(
         Venta.objects.select_related('cliente'),
         id=venta_id
@@ -378,17 +367,9 @@ def buscar_cliente_telefono(request):
     )
 
 
-
-
-
 # -------------------------
 # DASHBOARD (KPIs + gráficos)
 # -------------------------
-from django.utils.dateparse import parse_date
-from django.utils import timezone
-from datetime import timedelta
-# ... resto de tus imports
-
 @login_required
 def dashboard(request):
     hoy = timezone.localdate()
@@ -400,30 +381,24 @@ def dashboard(request):
     desde_param = request.GET.get('desde', None)
     hasta_param = request.GET.get('hasta', None)
     
-    # Si hay parámetro 'dias', calcular desde
     if dias:
         try:
             desde = hoy - timedelta(days=int(dias))
             hasta = hoy
         except (ValueError, TypeError):
-            # Si el parámetro es inválido, usar default
             inicio_mes = hoy.replace(day=1)
             desde = inicio_mes - timedelta(days=180)
             hasta = hoy
-    # Si hay fechas específicas, usarlas
     elif desde_param and hasta_param:
         desde = parse_date(desde_param) if desde_param else None
         hasta = parse_date(hasta_param) if hasta_param else None
         
-        # Si parse_date falla o fechas inválidas, usar default
         if not desde or not hasta:
             inicio_mes = hoy.replace(day=1)
             desde = inicio_mes - timedelta(days=180)
             hasta = hoy
-        # Validar que desde no sea mayor que hasta
         elif desde > hasta:
             desde, hasta = hasta, desde
-    # Sin filtros: usar últimos 180 días por defecto
     else:
         inicio_mes = hoy.replace(day=1)
         desde = inicio_mes - timedelta(days=180)
@@ -500,8 +475,91 @@ def dashboard(request):
     prod_labels = [p["producto__nombre"] for p in top_productos_qs]
     prod_kilos = [float(p["kilos"] or 0) for p in top_productos_qs]
 
+    # ================================================
+    # ✅ GRÁFICAS DIARIAS CON SELECTOR DE MES
+    # ================================================
+    
+    # Obtener el mes seleccionado desde el parámetro GET
+    mes_seleccionado_param = request.GET.get('mes_diario', None)
+    
+    if mes_seleccionado_param:
+        # Formato esperado: "2026-02" (año-mes)
+        try:
+            anio, mes = mes_seleccionado_param.split('-')
+            mes_seleccionado = date(int(anio), int(mes), 1)
+        except (ValueError, AttributeError):
+            # Si hay error, usar mes actual
+            mes_seleccionado = hoy.replace(day=1)
+    else:
+        # Por defecto, usar mes actual
+        mes_seleccionado = hoy.replace(day=1)
+    
+    # Calcular inicio y fin del mes seleccionado
+    inicio_mes_seleccionado = mes_seleccionado
+    _, num_dias_mes = monthrange(mes_seleccionado.year, mes_seleccionado.month)
+    fin_mes_seleccionado = mes_seleccionado.replace(day=num_dias_mes)
+    
+    # Consulta agrupada por día del mes seleccionado
+    ventas_diarias = (
+        Venta.objects
+        .filter(
+            fecha__date__gte=inicio_mes_seleccionado,
+            fecha__date__lte=fin_mes_seleccionado
+        )
+        .exclude(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
+        .annotate(dia=TruncDate('fecha'))
+        .values('dia')
+        .annotate(
+            cantidad=Count('id'),
+            valor_total=Coalesce(
+                Sum('monto_total'),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        )
+        .order_by('dia')
+    )
+    
+    # Crear diccionario de ventas por día
+    ventas_map = {}
+    for v in ventas_diarias:
+        dia_num = v['dia'].day
+        ventas_map[dia_num] = {
+            'cantidad': v['cantidad'],
+            'valor': float(v['valor_total'] or 0)
+        }
+    
+    # Generar todos los días del mes con datos completos
+    dias_labels = []
+    cantidad_por_dia = []
+    valor_por_dia = []
+    
+    for dia in range(1, num_dias_mes + 1):
+        dias_labels.append(f"{dia:02d}/{mes_seleccionado.month:02d}")
+        
+        if dia in ventas_map:
+            cantidad_por_dia.append(ventas_map[dia]['cantidad'])
+            valor_por_dia.append(ventas_map[dia]['valor'])
+        else:
+            cantidad_por_dia.append(0)
+            valor_por_dia.append(0)
+    
+    # Calcular totales del mes
+    total_cantidad_mes = sum(cantidad_por_dia)
+    total_valor_mes = sum(valor_por_dia)
+    
+    # Generar lista de meses disponibles (últimos 12 meses)
+    meses_disponibles = []
+    for i in range(12):
+        fecha_mes = hoy - timedelta(days=30 * i)
+        primer_dia = fecha_mes.replace(day=1)
+        meses_disponibles.append({
+            'valor': primer_dia.strftime('%Y-%m'),
+            'texto': primer_dia.strftime('%B %Y').capitalize()
+        })
+
     context = {
-        # Fechas para el template (formato string para inputs de fecha)
+        # Fechas para el template
         "desde": desde.strftime('%Y-%m-%d'),
         "hoy": hasta.strftime('%Y-%m-%d'),
         
@@ -516,7 +574,7 @@ def dashboard(request):
         "por_canal": list(por_canal_qs),
         "top_productos": list(top_productos_qs),
 
-        # JSON para gráficos
+        # JSON para gráficos mensuales
         "labels_mes_json": json.dumps(labels_mes),
         "ingresos_mes_json": json.dumps(ingresos_mes),
         "kilos_mes_json": json.dumps(kilos_mes),
@@ -527,6 +585,18 @@ def dashboard(request):
 
         "prod_labels_json": json.dumps(prod_labels),
         "prod_kilos_json": json.dumps(prod_kilos),
+        
+        # ✅ JSON para gráficas diarias
+        "dias_labels_json": json.dumps(dias_labels),
+        "cantidad_por_dia_json": json.dumps(cantidad_por_dia),
+        "valor_por_dia_json": json.dumps(valor_por_dia),
+        "mes_actual": mes_seleccionado.strftime("%B %Y"),
+        "total_cantidad_mes": total_cantidad_mes,
+        "total_valor_mes": int(total_valor_mes),
+        
+        # ✅ NUEVO: Selector de mes
+        "meses_disponibles": meses_disponibles,
+        "mes_seleccionado": mes_seleccionado.strftime('%Y-%m'),
     }
     return render(request, "crm/dashboard.html", context)
 
@@ -540,15 +610,12 @@ def resumen_mensual(request):
     default_desde = inicio_mes - timedelta(days=180)
     default_hasta = hoy
 
-    # Obtener parámetros de fecha del request
     desde_str = (request.GET.get("desde") or "").strip()
     hasta_str = (request.GET.get("hasta") or "").strip()
 
-    # Parsear fechas o usar defaults
     desde = parse_date(desde_str) if desde_str else default_desde
     hasta = parse_date(hasta_str) if hasta_str else default_hasta
 
-    # Validaciones
     if not desde:
         desde = default_desde
     if not hasta:
@@ -556,11 +623,9 @@ def resumen_mensual(request):
     if desde > hasta:
         desde, hasta = hasta, desde
 
-    # Obtener costo por kg de la importación activa
     imp_activa = Importacion.objects.filter(activo=True).order_by("-fecha").first()
     costo_por_kg = imp_activa.costo_por_kg if imp_activa else Decimal("0")
 
-    # Consulta de ventas agrupadas por mes
     ventas_qs = (
         Venta.objects
         .filter(fecha__date__gte=desde, fecha__date__lte=hasta)
@@ -587,7 +652,6 @@ def resumen_mensual(request):
         .order_by("-mes")
     )
 
-    # Consulta de gastos agrupados por mes
     gastos_qs = (
         GastoOperacional.objects
         .filter(fecha__gte=desde, fecha__lte=hasta)
@@ -602,10 +666,8 @@ def resumen_mensual(request):
         )
     )
 
-    # Crear mapa de gastos por mes
     gastos_map = {r["mes"]: (r["gastos"] or Decimal("0")) for r in gastos_qs}
 
-    # Construir filas con cálculos
     filas = []
     for r in ventas_qs:
         mes = r["mes"]
@@ -636,7 +698,6 @@ def resumen_mensual(request):
             "utilidad": utilidad,
         })
 
-    # Calcular totales
     totales = {
         "kilos": sum((f["kilos"] for f in filas), Decimal("0")),
         "ventas_brutas": sum((f["ventas_brutas"] for f in filas), Decimal("0")),
@@ -678,7 +739,6 @@ def inventario(request):
         except Exception:
             dias = 30
 
-        # Parámetro configurable para lead time de importación
         dias_importacion = 90
 
         desde_consumo = hoy - timezone.timedelta(days=dias)
@@ -739,16 +799,13 @@ def inventario(request):
             dias_stock = (stock_kg / consumo_diario).quantize(Decimal("0.1"))
             fecha_reorden_estimada = hoy + timezone.timedelta(days=float(dias_stock))
             
-            # Calcular cuándo hacer la orden (restando el lead time de importación)
             dias_hasta_ordenar = dias_stock - Decimal(str(dias_importacion))
             
             if dias_hasta_ordenar > 0:
                 fecha_orden_sugerida = hoy + timezone.timedelta(days=float(dias_hasta_ordenar))
             else:
-                # Si el resultado es negativo, significa que ya deberías haber ordenado
                 fecha_orden_sugerida = hoy
 
-        # Alerta si quedan menos días de stock que el lead time de importación
         umbral_reorden_dias = dias_importacion
         alerta_reorden = (dias_stock is not None) and (dias_stock <= Decimal(str(umbral_reorden_dias)))
 
@@ -779,15 +836,11 @@ def inventario(request):
         messages.error(request, "Error al cargar inventario. Contacta al administrador.")
         return redirect("crm:dashboard")
 
-# crm/views_inventario.py
-from datetime import date
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
-
-from .services_inventario import consumo_bolsas
-
 def consumo_bolsas_view(request):
-    # Lee fechas desde GET: ?desde=2026-01-01&hasta=2026-01-06
+    from datetime import date
+    from django.utils.dateparse import parse_date
+    from .services_inventario import consumo_bolsas
+    
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
 
