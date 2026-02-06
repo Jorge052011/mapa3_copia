@@ -3,20 +3,20 @@ from decimal import Decimal
 from datetime import timedelta, date
 import json
 import logging
+from calendar import monthrange
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import (
-    Sum, Count, Max, Value, DecimalField, Q, DateField, F, ExpressionWrapper, Prefetch,
+    Sum, Count, Max, Min, Value, DecimalField, Q, DateField, F,
+    ExpressionWrapper, Prefetch, OuterRef, Subquery,
 )
 from django.db.models.functions import Coalesce, TruncMonth, TruncDate
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
-from datetime import timedelta
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
-from calendar import monthrange
 
 from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional
 from .forms import ClienteForm, VentaForm, VentaItemForm
@@ -102,7 +102,7 @@ def clientes_list(request):
 
     paginator = Paginator(clientes, 25)
     page_number = request.GET.get('page', 1)
-    
+
     try:
         clientes_paginados = paginator.page(page_number)
     except PageNotAnInteger:
@@ -217,7 +217,7 @@ def ventas_list(request):
 
     paginator = Paginator(qs, 25)
     page_number = request.GET.get('page', 1)
-    
+
     try:
         ventas_paginadas = paginator.page(page_number)
     except PageNotAnInteger:
@@ -373,14 +373,14 @@ def buscar_cliente_telefono(request):
 @login_required
 def dashboard(request):
     hoy = timezone.localdate()
-    
+
     # ============================================
     # SISTEMA DE FILTROS DE PERÍODO
     # ============================================
     dias = request.GET.get('dias', None)
     desde_param = request.GET.get('desde', None)
     hasta_param = request.GET.get('hasta', None)
-    
+
     if dias:
         try:
             desde = hoy - timedelta(days=int(dias))
@@ -392,7 +392,7 @@ def dashboard(request):
     elif desde_param and hasta_param:
         desde = parse_date(desde_param) if desde_param else None
         hasta = parse_date(hasta_param) if hasta_param else None
-        
+
         if not desde or not hasta:
             inicio_mes = hoy.replace(day=1)
             desde = inicio_mes - timedelta(days=180)
@@ -476,30 +476,24 @@ def dashboard(request):
     prod_kilos = [float(p["kilos"] or 0) for p in top_productos_qs]
 
     # ================================================
-    # ✅ GRÁFICAS DIARIAS CON SELECTOR DE MES
+    # ✅ GRÁFICAS DIARIAS CON SELECTOR DE MES (ACTUAL)
     # ================================================
-    
-    # Obtener el mes seleccionado desde el parámetro GET
     mes_seleccionado_param = request.GET.get('mes_diario', None)
-    
+
     if mes_seleccionado_param:
-        # Formato esperado: "2026-02" (año-mes)
         try:
             anio, mes = mes_seleccionado_param.split('-')
             mes_seleccionado = date(int(anio), int(mes), 1)
         except (ValueError, AttributeError):
-            # Si hay error, usar mes actual
             mes_seleccionado = hoy.replace(day=1)
     else:
-        # Por defecto, usar mes actual
         mes_seleccionado = hoy.replace(day=1)
-    
-    # Calcular inicio y fin del mes seleccionado
+
     inicio_mes_seleccionado = mes_seleccionado
     _, num_dias_mes = monthrange(mes_seleccionado.year, mes_seleccionado.month)
     fin_mes_seleccionado = mes_seleccionado.replace(day=num_dias_mes)
-    
-    # Consulta agrupada por día del mes seleccionado
+
+    # --------- (ACTUAL) ventas diarias ----------
     ventas_diarias = (
         Venta.objects
         .filter(
@@ -519,8 +513,7 @@ def dashboard(request):
         )
         .order_by('dia')
     )
-    
-    # Crear diccionario de ventas por día
+
     ventas_map = {}
     for v in ventas_diarias:
         dia_num = v['dia'].day
@@ -528,27 +521,84 @@ def dashboard(request):
             'cantidad': v['cantidad'],
             'valor': float(v['valor_total'] or 0)
         }
-    
-    # Generar todos los días del mes con datos completos
+
     dias_labels = []
     cantidad_por_dia = []
     valor_por_dia = []
-    
+
     for dia in range(1, num_dias_mes + 1):
         dias_labels.append(f"{dia:02d}/{mes_seleccionado.month:02d}")
-        
+
         if dia in ventas_map:
             cantidad_por_dia.append(ventas_map[dia]['cantidad'])
             valor_por_dia.append(ventas_map[dia]['valor'])
         else:
             cantidad_por_dia.append(0)
             valor_por_dia.append(0)
-    
-    # Calcular totales del mes
+
     total_cantidad_mes = sum(cantidad_por_dia)
     total_valor_mes = sum(valor_por_dia)
-    
-    # Generar lista de meses disponibles (últimos 12 meses)
+
+    # ================================================
+    # ✅ NUEVO: PRIMERAS COMPRAS (CLIENTES NUEVOS) DEL MES SELECCIONADO
+    # ================================================
+    base_mes = (
+        Venta.objects
+        .filter(
+            fecha__date__gte=inicio_mes_seleccionado,
+            fecha__date__lte=fin_mes_seleccionado
+        )
+        .exclude(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
+    )
+
+    primera_fecha_subq = (
+        Venta.objects
+        .exclude(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
+        .filter(cliente_id=OuterRef("cliente_id"))
+        .values("cliente_id")
+        .annotate(p=Min("fecha"))
+        .values("p")[:1]
+    )
+
+    ventas_first_time = (
+        base_mes
+        .annotate(primera_fecha=Subquery(primera_fecha_subq))
+        .annotate(dia=TruncDate("fecha"), dia_primera=TruncDate("primera_fecha"))
+        .filter(dia=F("dia_primera"))
+        .values("dia")
+        .annotate(
+            cantidad=Count("cliente_id", distinct=True),
+            valor_total=Coalesce(
+                Sum("monto_total"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        )
+        .order_by("dia")
+    )
+
+    first_map = {}
+    for v in ventas_first_time:
+        dia_num = v["dia"].day
+        first_map[dia_num] = {
+            "cantidad": v["cantidad"],
+            "valor": float(v["valor_total"] or 0),
+        }
+
+    cantidad_first_por_dia = []
+    valor_first_por_dia = []
+    for dia in range(1, num_dias_mes + 1):
+        if dia in first_map:
+            cantidad_first_por_dia.append(first_map[dia]["cantidad"])
+            valor_first_por_dia.append(first_map[dia]["valor"])
+        else:
+            cantidad_first_por_dia.append(0)
+            valor_first_por_dia.append(0)
+
+    total_first_cantidad_mes = sum(cantidad_first_por_dia)
+    total_first_valor_mes = sum(valor_first_por_dia)
+
+    # Meses disponibles (últimos 12 meses)
     meses_disponibles = []
     for i in range(12):
         fecha_mes = hoy - timedelta(days=30 * i)
@@ -559,22 +609,18 @@ def dashboard(request):
         })
 
     context = {
-        # Fechas para el template
         "desde": desde.strftime('%Y-%m-%d'),
         "hoy": hasta.strftime('%Y-%m-%d'),
-        
-        # KPIs
+
         "kpi_ingresos": ingresos,
         "kpi_kilos": kilos,
         "kpi_n_ventas": n_ventas,
         "kpi_ticket": ticket_prom,
 
-        # Datos para tablas
         "serie": list(serie_qs),
         "por_canal": list(por_canal_qs),
         "top_productos": list(top_productos_qs),
 
-        # JSON para gráficos mensuales
         "labels_mes_json": json.dumps(labels_mes),
         "ingresos_mes_json": json.dumps(ingresos_mes),
         "kilos_mes_json": json.dumps(kilos_mes),
@@ -585,20 +631,26 @@ def dashboard(request):
 
         "prod_labels_json": json.dumps(prod_labels),
         "prod_kilos_json": json.dumps(prod_kilos),
-        
-        # ✅ JSON para gráficas diarias
+
+        # ✅ JSON diario actual
         "dias_labels_json": json.dumps(dias_labels),
         "cantidad_por_dia_json": json.dumps(cantidad_por_dia),
         "valor_por_dia_json": json.dumps(valor_por_dia),
         "mes_actual": mes_seleccionado.strftime("%B %Y"),
         "total_cantidad_mes": total_cantidad_mes,
         "total_valor_mes": int(total_valor_mes),
-        
-        # ✅ NUEVO: Selector de mes
+
+        # ✅ NUEVO JSON: first-time
+        "cantidad_first_por_dia_json": json.dumps(cantidad_first_por_dia),
+        "valor_first_por_dia_json": json.dumps(valor_first_por_dia),
+        "total_first_cantidad_mes": total_first_cantidad_mes,
+        "total_first_valor_mes": int(total_first_valor_mes),
+
         "meses_disponibles": meses_disponibles,
         "mes_seleccionado": mes_seleccionado.strftime('%Y-%m'),
     }
     return render(request, "crm/dashboard.html", context)
+
 
 # -------------------------
 # RESUMEN MENSUAL
@@ -794,13 +846,13 @@ def inventario(request):
         fecha_reorden_estimada = None
         fecha_orden_sugerida = None
         dias_hasta_ordenar = None
-        
+
         if consumo_diario > 0:
             dias_stock = (stock_kg / consumo_diario).quantize(Decimal("0.1"))
             fecha_reorden_estimada = hoy + timezone.timedelta(days=float(dias_stock))
-            
+
             dias_hasta_ordenar = dias_stock - Decimal(str(dias_importacion))
-            
+
             if dias_hasta_ordenar > 0:
                 fecha_orden_sugerida = hoy + timezone.timedelta(days=float(dias_hasta_ordenar))
             else:
@@ -827,7 +879,7 @@ def inventario(request):
             "alerta_reorden": alerta_reorden,
         }
         return render(request, "crm/inventario.html", context)
-        
+
     except Exception as e:
         logger.error(
             f"Error crítico en inventario para usuario {request.user.username}: {e}",
@@ -836,11 +888,11 @@ def inventario(request):
         messages.error(request, "Error al cargar inventario. Contacta al administrador.")
         return redirect("crm:dashboard")
 
+
 def consumo_bolsas_view(request):
-    from datetime import date
     from django.utils.dateparse import parse_date
     from .services_inventario import consumo_bolsas
-    
+
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
 

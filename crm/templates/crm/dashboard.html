@@ -669,7 +669,7 @@ body {
     </div>
   </div>
 
-  <!-- ✅ GRÁFICAS DIARIAS CON SELECTOR DE MES -->
+  <!-- ✅ GRÁFICAS DIARIAS CON SELECTOR DE MES (ACTUAL - NO SE MODIFICA) -->
   <div class="daily-charts-section">
     <div class="daily-charts-header">
       <div class="daily-charts-title">
@@ -726,6 +726,43 @@ body {
         <h4>💰 Valor de Ventas por Día ($)</h4>
         <div class="daily-chart-wrapper">
           <canvas id="chartValorDiario"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ NUEVO BLOQUE: PRIMERAS COMPRAS (CLIENTES NUEVOS) -->
+  <div class="daily-charts-section">
+    <div class="daily-charts-header">
+      <div class="daily-charts-title">
+        <span style="font-size: 24px;">🆕</span>
+        <h3>Primeras compras (clientes nuevos) - {{ mes_actual|capfirst }}</h3>
+      </div>
+
+      <div class="daily-charts-stats">
+        <div class="daily-stat-item">
+          <div class="daily-stat-label">Clientes nuevos</div>
+          <div class="daily-stat-value">{{ total_first_cantidad_mes }}</div>
+        </div>
+        <div class="daily-stat-item">
+          <div class="daily-stat-label">Facturado</div>
+          <div class="daily-stat-value">${{ total_first_valor_mes|floatformat:0 }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="daily-charts-grid">
+      <div class="daily-chart-container">
+        <h4>🆕 Clientes nuevos por Día</h4>
+        <div class="daily-chart-wrapper">
+          <canvas id="chartFirstCantidadDiaria"></canvas>
+        </div>
+      </div>
+
+      <div class="daily-chart-container">
+        <h4>💰 Ventas de clientes nuevos por Día ($)</h4>
+        <div class="daily-chart-wrapper">
+          <canvas id="chartFirstValorDiario"></canvas>
         </div>
       </div>
     </div>
@@ -833,6 +870,10 @@ body {
   const cantidadPorDia = {{ cantidad_por_dia_json|safe }};
   const valorPorDia = {{ valor_por_dia_json|safe }};
 
+  // ✅ NUEVO: series “primeras compras”
+  const cantidadFirstPorDia = {{ cantidad_first_por_dia_json|safe }};
+  const valorFirstPorDia = {{ valor_first_por_dia_json|safe }};
+
   const gradientColors = {
     primary: ['rgba(79, 70, 229, 0.8)', 'rgba(79, 70, 229, 0.2)'],
     secondary: ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.2)'],
@@ -866,6 +907,9 @@ body {
     }
   };
 
+  // =========================
+  // ACTUAL: Cantidad diaria
+  // =========================
   const ctxCantidadDiaria = document.getElementById('chartCantidadDiaria').getContext('2d');
   const gradientCantidadDiaria = ctxCantidadDiaria.createLinearGradient(0, 0, 0, 280);
   gradientCantidadDiaria.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
@@ -892,32 +936,24 @@ body {
     },
     options: {
       ...commonOptions,
-      plugins: {
-        ...commonOptions.plugins,
-        legend: { display: false }
-      },
+      plugins: { ...commonOptions.plugins, legend: { display: false } },
       scales: {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            stepSize: 1,
-            callback: (v) => Math.round(v),
-            font: { size: 11 }
-          }
+          ticks: { stepSize: 1, callback: (v) => Math.round(v), font: { size: 11 } }
         },
         x: {
           grid: { display: false },
-          ticks: { 
-            font: { size: 10 },
-            maxRotation: 45,
-            minRotation: 45
-          }
+          ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 }
         }
       }
     }
   });
 
+  // =========================
+  // ACTUAL: Valor diario
+  // =========================
   const ctxValorDiario = document.getElementById('chartValorDiario').getContext('2d');
   const gradientValorDiario = ctxValorDiario.createLinearGradient(0, 0, 0, 280);
   gradientValorDiario.addColorStop(0, 'rgba(79, 70, 229, 0.8)');
@@ -939,31 +975,107 @@ body {
     },
     options: {
       ...commonOptions,
-      plugins: {
-        ...commonOptions.plugins,
-        legend: { display: false }
-      },
+      plugins: { ...commonOptions.plugins, legend: { display: false } },
       scales: {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            callback: (v) => '$' + Math.round(v).toLocaleString('es-CL'),
-            font: { size: 11 }
-          }
+          ticks: { callback: (v) => '$' + Math.round(v).toLocaleString('es-CL'), font: { size: 11 } }
         },
         x: {
           grid: { display: false },
-          ticks: { 
-            font: { size: 10 },
-            maxRotation: 45,
-            minRotation: 45
-          }
+          ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 }
         }
       }
     }
   });
 
+  // =========================
+  // ✅ NUEVO: Clientes nuevos por día
+  // =========================
+  const ctxFirstCantidad = document.getElementById('chartFirstCantidadDiaria').getContext('2d');
+  const gradientFirstCantidad = ctxFirstCantidad.createLinearGradient(0, 0, 0, 280);
+  gradientFirstCantidad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+  gradientFirstCantidad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+  new Chart(ctxFirstCantidad, {
+    type: 'line',
+    data: {
+      labels: diasLabels,
+      datasets: [{
+        label: 'Clientes nuevos',
+        data: cantidadFirstPorDia,
+        borderColor: 'rgb(245, 158, 11)',
+        backgroundColor: gradientFirstCantidad,
+        borderWidth: 3,
+        tension: 0.4,
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: 'rgb(245, 158, 11)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+      }]
+    },
+    options: {
+      ...commonOptions,
+      plugins: { ...commonOptions.plugins, legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: { stepSize: 1, callback: (v) => Math.round(v), font: { size: 11 } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 }
+        }
+      }
+    }
+  });
+
+  // =========================
+  // ✅ NUEVO: Facturado clientes nuevos por día
+  // =========================
+  const ctxFirstValor = document.getElementById('chartFirstValorDiario').getContext('2d');
+  const gradientFirstValor = ctxFirstValor.createLinearGradient(0, 0, 0, 280);
+  gradientFirstValor.addColorStop(0, 'rgba(16, 185, 129, 0.8)');
+  gradientFirstValor.addColorStop(1, 'rgba(16, 185, 129, 0.25)');
+
+  new Chart(ctxFirstValor, {
+    type: 'bar',
+    data: {
+      labels: diasLabels,
+      datasets: [{
+        label: 'Facturado clientes nuevos ($)',
+        data: valorFirstPorDia,
+        backgroundColor: gradientFirstValor,
+        borderColor: 'rgb(16, 185, 129)',
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      ...commonOptions,
+      plugins: { ...commonOptions.plugins, legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: { callback: (v) => '$' + Math.round(v).toLocaleString('es-CL'), font: { size: 11 } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 }
+        }
+      }
+    }
+  });
+
+  // =========================
+  // Mensual: Ingresos
+  // =========================
   const ctxIngresos = document.getElementById("chartIngresosMes").getContext('2d');
   const gradientIngresos = ctxIngresos.createLinearGradient(0, 0, 0, 300);
   gradientIngresos.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
@@ -994,19 +1106,16 @@ body {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            callback: (v) => "$ " + Math.round(v).toLocaleString("es-CL"),
-            font: { size: 11 }
-          }
+          ticks: { callback: (v) => "$ " + Math.round(v).toLocaleString("es-CL"), font: { size: 11 } }
         },
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11 } }
-        }
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
       }
     }
   });
 
+  // =========================
+  // Mensual: Kilos
+  // =========================
   const ctxKilos = document.getElementById("chartKilosMes").getContext('2d');
   const gradientKilos = ctxKilos.createLinearGradient(0, 0, 0, 300);
   gradientKilos.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
@@ -1032,19 +1141,16 @@ body {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg",
-            font: { size: 11 }
-          }
+          ticks: { callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg", font: { size: 11 } }
         },
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11 } }
-        }
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
       }
     }
   });
 
+  // =========================
+  // Canal: Doughnut
+  // =========================
   new Chart(document.getElementById("chartCanal"), {
     type: "doughnut",
     data: {
@@ -1080,6 +1186,9 @@ body {
     }
   });
 
+  // =========================
+  // Top productos
+  // =========================
   const ctxProductos = document.getElementById("chartTopProductos").getContext('2d');
   const gradientProductos = ctxProductos.createLinearGradient(0, 0, 400, 0);
   gradientProductos.addColorStop(0, 'rgba(16, 185, 129, 0.8)');
@@ -1106,17 +1215,11 @@ body {
         x: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg",
-            font: { size: 11 }
-          }
+          ticks: { callback: (v) => Math.round(v).toLocaleString("es-CL") + " kg", font: { size: 11 } }
         },
         y: {
           grid: { display: false },
-          ticks: { 
-            font: { size: 11 },
-            autoSkip: false
-          }
+          ticks: { font: { size: 11 }, autoSkip: false }
         }
       }
     }
