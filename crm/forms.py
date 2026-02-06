@@ -35,6 +35,11 @@ class VentaForm(forms.ModelForm):
             "kilos_total",      # ✅ kilos (antes era total)
             "observaciones",
         ]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # ✅ Orden descendente por ID (clientes más recientes primero)
+        self.fields['cliente'].queryset = Cliente.objects.all().order_by('-id')
 
     def clean(self):
         cleaned_data = super().clean()
