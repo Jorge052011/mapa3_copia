@@ -7,7 +7,7 @@ from .models import VentaItem, Venta
 
 
 # inventario original las mermas se deben restar del original
-STOCK_INICIAL_8 = 1095-2
+STOCK_INICIAL_8 = 1095-4
 STOCK_INICIAL_20 = 862-8
 # ---------------------------------------------------------
 # MAPA SKU -> (bolsas_8kg, bolsas_20kg)

@@ -236,6 +236,10 @@ body {
   background: rgba(59, 130, 246, 0.05);
 }
 
+.row-merma {
+  background: rgba(245, 158, 11, 0.05);
+}
+
 /* Valores destacados */
 .value-primary {
   color: var(--primary);
@@ -402,8 +406,18 @@ body {
         </tr>
         
         <tr>
-          <th><span class="metric-icon">📥</span>Kilos ingresados (histórico)</th>
-          <td>{{ kilos_ingresados|floatformat:0 }} kg</td>
+          <th><span class="metric-icon">📥</span>Kilos ingresados (bruto histórico)</th>
+          <td>{{ kilos_ingresados_bruto|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr class="row-merma">
+          <th><span class="metric-icon">⚠️</span>Merma total declarada</th>
+          <td class="value-warning">{{ merma_total|floatformat:0 }} kg</td>
+        </tr>
+        
+        <tr class="row-info">
+          <th><span class="metric-icon">✅</span>Kilos netos disponibles (después de merma)</th>
+          <td class="value-success">{{ kilos_ingresados_neto|floatformat:0 }} kg</td>
         </tr>
         
         <tr>

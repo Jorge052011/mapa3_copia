@@ -267,31 +267,39 @@ class Importacion(models.Model):
         self.full_clean()
         
         kilos_netos = self.kilos_ingresados - self.merma_kg
-        self.costo_por_kg = (self.costo_total / kilos_netos).quantize(Decimal("0.01"))
-
-        if not self.pk:
-            self.kilos_restantes = kilos_netos
-            return super().save(*args, **kwargs)
-
-        try:
-            anterior = Importacion.objects.get(pk=self.pk)
-        except Importacion.DoesNotExist:
-            self.kilos_restantes = kilos_netos
-            return super().save(*args, **kwargs)
-
-        merma_anterior = anterior.merma_kg or Decimal("0")
-        merma_nueva = self.merma_kg or Decimal("0")
-
-        delta_merma = merma_nueva - merma_anterior
-        nuevo_restante = (anterior.kilos_restantes or Decimal("0")) - delta_merma
-
-        if nuevo_restante < 0:
+        
+        if kilos_netos <= 0:
             raise ValidationError(
-                f"La merma ingresada ({merma_nueva} kg) dejaría stock negativo "
-                f"({nuevo_restante} kg). Ya hay {abs(nuevo_restante)} kg vendidos o descontados."
+                f"Los kilos netos ({kilos_netos} kg) deben ser mayores a 0. "
+                f"Revisa los kilos ingresados ({self.kilos_ingresados} kg) y la merma ({self.merma_kg} kg)."
             )
-
-        self.kilos_restantes = nuevo_restante
+        
+        self.costo_por_kg = (self.costo_total / kilos_netos).quantize(Decimal("0.01"))
+        
+        # ✅ SIMPLIFICADO: kilos_restantes siempre es kilos_netos
+        # (el descuento de ventas se hace a nivel agregado en la vista)
+        if not self.pk:
+            # Nueva importación
+            self.kilos_restantes = kilos_netos
+        else:
+            # Edición: recalcular desde el estado anterior
+            try:
+                anterior = Importacion.objects.get(pk=self.pk)
+                kilos_netos_anterior = anterior.kilos_ingresados - anterior.merma_kg
+                kilos_vendidos = kilos_netos_anterior - anterior.kilos_restantes
+                
+                nuevo_restante = kilos_netos - kilos_vendidos
+                
+                if nuevo_restante < 0:
+                    raise ValidationError(
+                        f"No puedes reducir el stock a {nuevo_restante} kg. "
+                        f"Ya se han vendido {kilos_vendidos} kg de esta importación."
+                    )
+                
+                self.kilos_restantes = nuevo_restante
+            except Importacion.DoesNotExist:
+                self.kilos_restantes = kilos_netos
+        
         super().save(*args, **kwargs)
 
 

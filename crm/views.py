@@ -795,16 +795,28 @@ def inventario(request):
 
         desde_consumo = hoy - timezone.timedelta(days=dias)
 
-        kilos_ingresados = (
-            Importacion.objects.aggregate(
-                s=Coalesce(
-                    Sum("kilos_ingresados"),
-                    Value(0),
-                    output_field=DecimalField(max_digits=12, decimal_places=2),
-                )
-            )["s"]
-            or Decimal("0")
+        # ✅ NUEVO: Usar kilos_restantes que ya descuenta la merma automáticamente
+        importaciones_stats = Importacion.objects.aggregate(
+            ingresados_bruto=Coalesce(
+                Sum("kilos_ingresados"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            merma_total=Coalesce(
+                Sum("merma_kg"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            disponibles=Coalesce(
+                Sum("kilos_restantes"),  # ✅ Este campo ya tiene merma descontada
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
         )
+
+        kilos_ingresados_bruto = importaciones_stats["ingresados_bruto"] or Decimal("0")
+        merma_total = importaciones_stats["merma_total"] or Decimal("0")
+        kilos_ingresados_neto = importaciones_stats["disponibles"] or Decimal("0")
 
         kilos_expr = ExpressionWrapper(
             F("cantidad") * F("producto__peso_kg"),
@@ -823,7 +835,8 @@ def inventario(request):
             or Decimal("0")
         )
 
-        stock_kg = (kilos_ingresados - kilos_vendidos_total).quantize(Decimal("0.01"))
+        # ✅ Stock = Kilos netos disponibles - Kilos vendidos
+        stock_kg = (kilos_ingresados_neto - kilos_vendidos_total).quantize(Decimal("0.01"))
 
         kilos_vendidos_ventana = (
             VentaItem.objects.filter(venta__fecha__date__gte=desde_consumo)
@@ -865,9 +878,11 @@ def inventario(request):
             "hoy": hoy,
             "dias": dias,
             "desde_consumo": desde_consumo,
-            "kilos_ingresados": kilos_ingresados,
+            "kilos_ingresados_bruto": kilos_ingresados_bruto,  # ✅ NUEVO
+            "merma_total": merma_total,  # ✅ NUEVO
+            "kilos_ingresados_neto": kilos_ingresados_neto,  # ✅ NUEVO
             "kilos_vendidos_total": kilos_vendidos_total,
-            "stock_kg": stock_kg,
+            "stock_kg": stock_kg,  # ✅ Ahora refleja el stock real sin merma
             "kilos_vendidos_ventana": kilos_vendidos_ventana,
             "consumo_diario": consumo_diario,
             "dias_stock": dias_stock,
