@@ -22,6 +22,7 @@ DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
+    "100.71.205.69",
     "localhost",
     "192.168.0.29",
     ".app.github.dev",        # Codespaces
@@ -31,6 +32,7 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     # ✅ TU HOST EXACTO (del navegador)
     "https://ubiquitous-telegram-r4w677p5p7j4fr5r-8000.app.github.dev",
+    "http:100.71.205.69:8000",
 
     "http://127.0.0.1:8000",
     "http://localhost:8000",
