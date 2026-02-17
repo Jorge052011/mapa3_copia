@@ -12,9 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # cargar .env desde la raíz del proyecto (donde está manage.py)
 load_dotenv(BASE_DIR / ".env")
 
-# ==========================
 # CONFIGURACIÓN BÁSICA
-# ==========================
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-insegura")
 
@@ -32,7 +30,7 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     # ✅ TU HOST EXACTO (del navegador)
     "https://ubiquitous-telegram-r4w677p5p7j4fr5r-8000.app.github.dev",
-    "http://100.71.205.69:8000",
+    "http://100.71.205.69:8000", 
     "http://127.0.0.1:8000",
     "http://localhost:8000",
     "https://localhost:8000",
@@ -40,14 +38,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.githubpreview.dev",
 ]
 
+
 # ✅ Asegura que JS pueda leer token si se usa cookie (igual ahora usas meta)
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# ==========================
 # APLICACIONES INSTALADAS
-# ==========================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -61,9 +58,7 @@ INSTALLED_APPS = [
     "crm.apps.CrmConfig",
 ]
 
-# ==========================
 # MIDDLEWARE
-# ==========================
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -75,9 +70,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# ==========================
 # URLS Y TEMPLATES
-# ==========================
 
 ROOT_URLCONF = 'DistribucionApp.urls'
 
@@ -99,9 +92,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'DistribucionApp.wsgi.application'
 
-# ==========================
 # BASE DE DATOS
-# ==========================
 
 DATABASES = {
     'default': {
@@ -110,9 +101,7 @@ DATABASES = {
     }
 }
 
-# ==========================
 # VALIDADORES DE PASSWORD
-# ==========================
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -129,9 +118,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# ==========================
 # INTERNACIONALIZACIÓN
-# ==========================
 
 LANGUAGE_CODE = 'es-cl'
 TIME_ZONE = 'America/Santiago'
@@ -139,41 +126,30 @@ TIME_ZONE = 'America/Santiago'
 USE_I18N = True
 USE_TZ = True
 
-# ==========================
 # ARCHIVOS ESTÁTICOS
-# ==========================
 
 STATIC_URL = '/static/'
 
-# ==========================
 # DEFAULT PRIMARY KEY
-# ==========================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ==========================
 # GOOGLE MAPS API
-# ==========================
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 
 
-# ========== AGREGAR ESTAS LÍNEAS AL FINAL DE settings.py ==========
 
 
 
-# ==========================
 # AUTENTICACIÓN
-# ==========================
 
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
 
-# ==========================
 # LOGGING
-# ==========================
 
 LOGGING = {
     'version': 1,
@@ -240,9 +216,7 @@ LOGGING = {
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
-# ==========================
 # SEGURIDAD (solo en producción)
-# ==========================
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
