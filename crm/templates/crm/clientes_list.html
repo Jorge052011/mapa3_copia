@@ -117,9 +117,11 @@
 <table style="width: 100%; border-collapse: collapse;">
     <thead>
         <tr style="background-color: #f0f0f0;">
+            <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Nombre</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Teléfono</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Comuna</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Dirección</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Gasto Total</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Segmento</th>
@@ -129,9 +131,11 @@
     <tbody>
         {% for cliente in clientes %}
         <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; color: #888; font-size: 13px;">{{ cliente.id }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.nombre }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.telefono }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.comuna }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.direccion }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ cliente.kilos_acumulados|floatformat:2 }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${{ cliente.gasto_total|floatformat:0 }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">
@@ -152,7 +156,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="7" style="padding: 20px; text-align: center; color: #999;">
+            <td colspan="9" style="padding: 20px; text-align: center; color: #999;">
                 {% if f.buscar %}
                     No se encontraron clientes con el nombre "{{ f.buscar }}"
                 {% else %}
