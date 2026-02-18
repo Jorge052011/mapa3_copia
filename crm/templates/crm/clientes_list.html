@@ -114,7 +114,8 @@
 {% endif %}
 
 <!-- Tabla de clientes -->
-<table style="width: 100%; border-collapse: collapse;">
+<div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+<table style="min-width: 650px; width: 100%; border-collapse: collapse;">
     <thead>
         <tr style="background-color: #f0f0f0;">
             <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
@@ -167,6 +168,7 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 
 <!-- Paginación -->
 {% if clientes.has_other_pages %}
