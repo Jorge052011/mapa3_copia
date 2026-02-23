@@ -32,6 +32,8 @@ urlpatterns = [
     path("inventario/", views.inventario, name="inventario"),
 
     path("inventario/consumo-bolsas/", views.consumo_bolsas_view, name="consumo_bolsas"),
-    
+
+    # Exportar Excel de ventas
+    path("ventas/exportar-excel/", views.exportar_ventas_excel, name="exportar_ventas_excel"),
 
 ]

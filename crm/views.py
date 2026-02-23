@@ -921,3 +921,182 @@ def consumo_bolsas_view(request):
         "desde": desde_str or "",
         "hasta": hasta_str or "",
     })
+
+
+# -------------------------
+# EXPORTAR EXCEL DE VENTAS
+# -------------------------
+@login_required
+def exportar_ventas_excel(request):
+    import io
+    from collections import defaultdict
+    from django.http import HttpResponse
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    # --- Filtros opcionales por fecha (GET params: desde / hasta) ---
+    desde_str = request.GET.get("desde", "").strip()
+    hasta_str = request.GET.get("hasta", "").strip()
+
+    qs = (
+        Venta.objects.select_related("cliente")
+        .prefetch_related("items__producto")
+        .order_by("-fecha")
+    )
+    if desde_str:
+        desde = parse_date(desde_str)
+        if desde:
+            qs = qs.filter(fecha__date__gte=desde)
+    if hasta_str:
+        hasta = parse_date(hasta_str)
+        if hasta:
+            qs = qs.filter(fecha__date__lte=hasta)
+
+    # --- Estilos ---
+    header_fill  = PatternFill("solid", start_color="1F4E79", end_color="1F4E79")
+    alt_fill     = PatternFill("solid", start_color="EBF3FB", end_color="EBF3FB")
+    header_font  = Font(name="Arial", bold=True, color="FFFFFF", size=11)
+    data_font    = Font(name="Arial", size=10)
+    center       = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left         = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+    thin         = Side(style="thin", color="CCCCCC")
+    borde        = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    TIPO_DISPLAY = {
+        "boleta":       "Boleta",
+        "factura":      "Factura",
+        "nota_credito": "Nota Crédito",
+        "sin_doc":      "Sin documento",
+    }
+    CANAL_DISPLAY = {
+        "instagram": "Instagram",
+        "whatsapp":  "WhatsApp",
+        "web":       "Web",
+        "otro":      "Otro",
+    }
+
+    wb = openpyxl.Workbook()
+
+    # ---- Hoja 1: Compras por día ----
+    ws1 = wb.active
+    ws1.title = "Compras por Día"
+
+    headers1 = [
+        "Fecha", "N° Boleta/Doc", "Tipo Documento",
+        "Cliente", "Teléfono", "Email",
+        "Dirección", "Comuna", "Canal",
+        "Productos", "Kilos", "Monto Total ($)", "Observaciones",
+    ]
+    ws1.append(headers1)
+    for cell in ws1[1]:
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = center
+        cell.border    = borde
+
+    resumen_comuna = defaultdict(lambda: {"ventas": 0, "monto": 0, "clientes": set()})
+    resumen_dia    = defaultdict(lambda: {"ventas": 0, "monto": 0})
+
+    for i, v in enumerate(qs, start=2):
+        c   = v.cliente
+        fecha_str    = v.fecha.strftime("%Y-%m-%d") if v.fecha else ""
+        productos_str = " | ".join(
+            f"{it.producto.nombre} x{it.cantidad}" for it in v.items.all()
+        ) or "—"
+        obs = (v.observaciones or c.observaciones or "").strip()
+        monto = float(v.monto_total or 0)
+        kilos = float(v.kilos_total or 0)
+        comuna = c.comuna or "Sin comuna"
+
+        ws1.append([
+            fecha_str,
+            v.numero_documento or "—",
+            TIPO_DISPLAY.get(v.tipo_documento, v.tipo_documento),
+            c.nombre,
+            c.telefono or "",
+            c.email or "",
+            c.direccion or "",
+            c.comuna or "",
+            CANAL_DISPLAY.get(v.canal, v.canal),
+            productos_str,
+            kilos,
+            monto,
+            obs,
+        ])
+        for j, cell in enumerate(ws1[i], start=1):
+            cell.font      = data_font
+            cell.border    = borde
+            cell.alignment = center if j in (1, 2, 3, 9, 11, 12) else left
+            if i % 2 == 0:
+                cell.fill = alt_fill
+
+        # Acumulados para hojas 2 y 3
+        resumen_comuna[comuna]["ventas"] += 1
+        resumen_comuna[comuna]["monto"]  += monto
+        resumen_comuna[comuna]["clientes"].add(c.nombre)
+        resumen_dia[fecha_str]["ventas"] += 1
+        resumen_dia[fecha_str]["monto"]  += monto
+
+    # Formato moneda col 12
+    for row in ws1.iter_rows(min_row=2, max_row=ws1.max_row, min_col=12, max_col=12):
+        for cell in row:
+            cell.number_format = "#,##0"
+
+    col_widths1 = [12, 15, 18, 30, 14, 28, 35, 20, 12, 45, 10, 16, 40]
+    for col, w in enumerate(col_widths1, start=1):
+        ws1.column_dimensions[get_column_letter(col)].width = w
+    ws1.row_dimensions[1].height = 30
+    ws1.freeze_panes = "A2"
+
+    # ---- Hoja 2: Resumen por comuna ----
+    ws2 = wb.create_sheet("Resumen por Comuna")
+    ws2.append(["Comuna", "N° Ventas", "Clientes Únicos", "Monto Total ($)"])
+    for cell in ws2[1]:
+        cell.font = header_font; cell.fill = header_fill
+        cell.alignment = center; cell.border = borde
+
+    for i, (comuna, d) in enumerate(sorted(resumen_comuna.items()), start=2):
+        ws2.append([comuna, d["ventas"], len(d["clientes"]), d["monto"]])
+        for cell in ws2[i]:
+            cell.font = data_font; cell.border = borde; cell.alignment = center
+            if i % 2 == 0: cell.fill = alt_fill
+
+    for row in ws2.iter_rows(min_row=2, max_row=ws2.max_row, min_col=4, max_col=4):
+        for c in row: c.number_format = "#,##0"
+    for col, w in zip([1,2,3,4],[25,12,18,18]):
+        ws2.column_dimensions[get_column_letter(col)].width = w
+    ws2.freeze_panes = "A2"
+
+    # ---- Hoja 3: Resumen por día ----
+    ws3 = wb.create_sheet("Resumen por Día")
+    ws3.append(["Fecha", "N° Ventas", "Monto Total ($)"])
+    for cell in ws3[1]:
+        cell.font = header_font; cell.fill = header_fill
+        cell.alignment = center; cell.border = borde
+
+    for i, (dia, d) in enumerate(sorted(resumen_dia.items(), reverse=True), start=2):
+        ws3.append([dia, d["ventas"], d["monto"]])
+        for cell in ws3[i]:
+            cell.font = data_font; cell.border = borde; cell.alignment = center
+            if i % 2 == 0: cell.fill = alt_fill
+
+    for row in ws3.iter_rows(min_row=2, max_row=ws3.max_row, min_col=3, max_col=3):
+        for c in row: c.number_format = "#,##0"
+    for col, w in zip([1,2,3],[15,12,18]):
+        ws3.column_dimensions[get_column_letter(col)].width = w
+    ws3.freeze_panes = "A2"
+
+    # --- Generar respuesta HTTP con el archivo ---
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    from datetime import date
+    nombre_archivo = f"ventas_{date.today().strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
+    return response

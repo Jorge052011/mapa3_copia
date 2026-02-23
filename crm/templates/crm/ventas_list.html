@@ -4,13 +4,27 @@
 <h2>Listado de Ventas</h2>
 
 <!-- Botones de acción -->
-<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
   <a class="btn btn-primary" href="{% url 'crm:venta_nueva' %}">
     ➕ Nueva venta
   </a>
   <a href="{% url 'crm:crear_cliente' %}" class="btn btn-primary">
     ➕ Crear cliente
   </a>
+
+  <!-- Exportar Excel -->
+  <form method="get" action="{% url 'crm:exportar_ventas_excel' %}" style="display:flex; align-items:center; gap:8px; background:#f0f7f0; padding:8px 12px; border-radius:6px; border:1px solid #b2d8b2;">
+    <span style="font-weight:600; color:#276027;">📥 Exportar Excel</span>
+    <label style="font-size:13px; margin:0;">Desde:
+      <input type="date" name="desde" style="margin-left:4px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+    </label>
+    <label style="font-size:13px; margin:0;">Hasta:
+      <input type="date" name="hasta" style="margin-left:4px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+    </label>
+    <button type="submit" class="btn btn-success" style="padding:5px 14px; font-size:13px;">
+      ⬇ Descargar
+    </button>
+  </form>
 </div>
 
 <!-- ✅ FORMULARIO DE FILTROS Y BÚSQUEDA -->
