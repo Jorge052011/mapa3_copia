@@ -11,405 +11,86 @@
   --secondary: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --bg-page: #f8fafc;
-  --card-bg: #ffffff;
   --border: #e2e8f0;
   --text-dark: #1e293b;
   --text-muted: #64748b;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
   --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+  --lav:      #8b5cf6;
+  --lav-dk:   #7c3aed;
+  --carbon:   #334155;
+  --carbon-dk:#1e293b;
+  --talco:    #0ea5e9;
+  --talco-dk: #0284c7;
 }
+body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; }
+.inventory-container { max-width:1400px; margin:0 auto; padding:24px 16px; }
+.page-header { background:linear-gradient(135deg,rgba(255,255,255,.95) 0%,rgba(255,255,255,.9) 100%); border-radius:20px; padding:32px; margin-bottom:24px; box-shadow:var(--shadow-lg); }
+.page-header h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:0 0 8px; display:flex; align-items:center; gap:12px; }
+.page-header h1::before { content:"📦"; font-size:36px; -webkit-text-fill-color:initial; }
+.page-subtitle { color:var(--text-muted); font-size:15px; margin:0; }
+.card { background:#fff; border-radius:16px; padding:24px; box-shadow:var(--shadow-md); border:1px solid var(--border); transition:all .3s ease; }
+.card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+.filter-card { background:linear-gradient(135deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.95) 100%); margin-bottom:24px; }
+.filter-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; align-items:end; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-label { font-size:13px; font-weight:600; color:var(--text-dark); text-transform:uppercase; letter-spacing:.5px; }
+.form-input { padding:12px 16px; border:2px solid var(--border); border-radius:12px; font-size:14px; transition:all .2s ease; background:#fff; }
+.form-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+.btn-filter { padding:12px 24px; background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%); color:#fff; border:none; border-radius:12px; font-weight:600; font-size:14px; cursor:pointer; transition:all .3s ease; box-shadow:0 4px 12px rgba(79,70,229,.3); }
+.btn-filter:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(79,70,229,.4); }
+.btn-clear { display:block; text-align:center; margin-top:8px; color:var(--text-muted); font-size:13px; text-decoration:none; }
+.btn-clear:hover { color:var(--primary); }
 
-body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-}
+.kpi-group-title { color:rgba(255,255,255,.9); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin:28px 0 10px 4px; display:flex; align-items:center; gap:8px; }
+.kpis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:8px; }
+.kpi-card { background:#fff; border-radius:16px; padding:22px 24px; position:relative; overflow:hidden; box-shadow:var(--shadow-md); transition:all .3s ease; }
+.kpi-card::before { content:""; position:absolute; top:0; left:0; width:6px; height:100%; transition:width .3s ease; }
+.kpi-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+.kpi-card:hover::before { width:12px; }
+.kpi-lav::before    { background:linear-gradient(180deg,var(--lav) 0%,var(--lav-dk) 100%); }
+.kpi-carbon::before { background:linear-gradient(180deg,var(--carbon) 0%,var(--carbon-dk) 100%); }
+.kpi-talco::before  { background:linear-gradient(180deg,var(--talco) 0%,var(--talco-dk) 100%); }
+.kpi-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.kpi-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.kpi-lav    .kpi-icon { background:rgba(139,92,246,.1); }
+.kpi-carbon .kpi-icon { background:rgba(51,65,85,.1); }
+.kpi-talco  .kpi-icon { background:rgba(14,165,233,.1); }
+.kpi-label { font-size:13px; color:var(--text-muted); font-weight:500; flex:1; line-height:1.3; }
+.kpi-value { font-size:40px; font-weight:800; line-height:1; margin-top:4px; }
+.kpi-lav    .kpi-value { background:linear-gradient(135deg,var(--lav) 0%,var(--lav-dk) 100%);    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-carbon .kpi-value { background:linear-gradient(135deg,var(--carbon) 0%,var(--carbon-dk) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-talco  .kpi-value { background:linear-gradient(135deg,var(--talco) 0%,var(--talco-dk) 100%);  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-value.consumo-val { background:linear-gradient(135deg,var(--warning) 0%,#f97316 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-value.status-bad  { background:linear-gradient(135deg,var(--danger) 0%,#dc2626 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-footer { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); }
 
-.inventory-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px 16px;
-}
-
-/* Header con gradiente */
-.page-header {
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
-  border-radius: 20px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(10px);
-}
-
-.page-header h1 {
-  font-size: 32px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-header h1::before {
-  content: "📦";
-  font-size: 36px;
-  -webkit-text-fill-color: initial;
-}
-
-.page-subtitle {
-  color: var(--text-muted);
-  font-size: 15px;
-  margin: 0;
-}
-
-/* Card mejorado */
-.card {
-  background: var(--card-bg);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border);
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-
-/* Filtros modernos */
-.filter-card {
-  background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
-  margin-bottom: 24px;
-}
-
-.filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  align-items: end;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.form-input {
-  padding: 12px 16px;
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  background: white;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.btn-filter {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-
-.btn-filter:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
-}
-
-.btn-clear {
-  display: block;
-  text-align: center;
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.btn-clear:hover {
-  color: var(--primary);
-}
-
-/* KPIs mejorados */
-.kpis-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.kpi-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  transition: all 0.3s ease;
-}
-
-.kpi-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6px;
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
-.kpi-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-}
-
-.kpi-card:hover::before {
-  width: 12px;
-}
-
-.kpi-card.consumo::before {
-  background: linear-gradient(180deg, var(--warning) 0%, #f97316 100%);
-}
-
-.kpi-card.stock::before {
-  background: linear-gradient(180deg, var(--secondary) 0%, #059669 100%);
-}
-
-.kpi-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.kpi-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-.kpi-card.consumo .kpi-icon {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(249, 115, 22, 0.1) 100%);
-}
-
-.kpi-card.stock .kpi-icon {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
-}
-
-.kpi-label {
-  font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 500;
-  flex: 1;
-}
-
-.kpi-value {
-  font-size: 42px;
-  font-weight: 800;
-  line-height: 1;
-  margin-top: 8px;
-}
-
-.kpi-card.consumo .kpi-value {
-  background: linear-gradient(135deg, var(--warning) 0%, #f97316 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.kpi-card.stock .kpi-value {
-  background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.kpi-value.status-bad {
-  background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.kpi-footer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* Alerta de SKUs sin mapeo */
-.alert-warning {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
-  border: 2px solid rgba(245, 158, 11, 0.3);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.alert-warning::before {
-  content: "⚠️";
-  font-size: 24px;
-}
-
-.alert-warning strong {
-  color: #b45309;
-}
-
-/* Sección de detalles */
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 32px 0 16px 0;
-}
-
-.section-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: white;
-  margin: 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.section-header::before {
-  content: "📋";
-  font-size: 28px;
-}
-
-/* Tabla mejorada */
-.table-card {
-  background: white;
-  overflow: hidden;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px;
-}
-
-.data-table thead {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-}
-
-.data-table th {
-  padding: 16px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid var(--border);
-}
-
-.data-table td {
-  padding: 16px;
-  font-size: 14px;
-  color: var(--text-dark);
-  border-bottom: 1px solid var(--border);
-}
-
-.data-table tbody tr {
-  transition: background-color 0.2s ease;
-}
-
-.data-table tbody tr:hover {
-  background: rgba(79, 70, 229, 0.03);
-}
-
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px 24px;
-  color: var(--text-muted);
-}
-
-.empty-state::before {
-  content: "📭";
-  display: block;
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-/* Badges para tipos */
-.badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.badge-entrada {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-}
-
-.badge-salida {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .page-header h1 {
-    font-size: 24px;
-  }
-  
-  .kpis-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .kpi-value {
-    font-size: 36px;
-  }
-  
-  .filter-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.alert-warning { background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(249,115,22,.05) 100%); border:2px solid rgba(245,158,11,.3); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; gap:12px; }
+.alert-warning::before { content:"⚠️"; font-size:24px; }
+.alert-warning strong { color:#b45309; }
+.section-header { display:flex; align-items:center; gap:12px; margin:32px 0 16px; }
+.section-header h2 { font-size:24px; font-weight:700; color:#fff; margin:0; text-shadow:0 2px 4px rgba(0,0,0,.1); }
+.section-header::before { content:"📋"; font-size:28px; }
+.table-card { background:#fff; overflow:hidden; }
+.table-wrapper { overflow-x:auto; }
+.data-table { width:100%; border-collapse:collapse; min-width:900px; }
+.data-table thead { background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%); }
+.data-table th { padding:14px 12px; text-align:left; font-size:12px; font-weight:700; color:var(--text-dark); text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid var(--border); white-space:nowrap; }
+.data-table td { padding:13px 12px; font-size:14px; color:var(--text-dark); border-bottom:1px solid var(--border); }
+.data-table tbody tr:hover { background:rgba(79,70,229,.03); }
+.data-table tbody tr:last-child td { border-bottom:none; }
+.col-lav    { color:var(--lav);    font-weight:600; }
+.col-carbon { color:var(--carbon); font-weight:600; }
+.col-talco  { color:var(--talco);  font-weight:600; }
+.zero { color:#cbd5e1; }
+.badge { display:inline-block; padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+.badge-nc    { background:rgba(16,185,129,.1); color:#059669; }
+.badge-venta { background:rgba(245,158,11,.1);  color:#b45309; }
+.empty-state { text-align:center; padding:48px 24px; color:var(--text-muted); }
+.empty-state::before { content:"📭"; display:block; font-size:48px; margin-bottom:16px; opacity:.5; }
+@media(max-width:768px){ .page-header h1{font-size:24px} .kpis-grid{grid-template-columns:1fr 1fr} .kpi-value{font-size:32px} .filter-grid{grid-template-columns:1fr} }
+@media(max-width:480px){ .kpis-grid{grid-template-columns:1fr} }
 </style>
 {% endblock %}
 
@@ -430,12 +111,10 @@ body {
           <label class="form-label">Fecha inicio</label>
           <input type="date" name="desde" value="{{ desde }}" class="form-input">
         </div>
-        
         <div class="form-group">
           <label class="form-label">Fecha fin</label>
           <input type="date" name="hasta" value="{{ hasta }}" class="form-input">
         </div>
-        
         <div class="form-group">
           <button type="submit" class="btn-filter">🔍 Filtrar período</button>
           <a href="?" class="btn-clear">Limpiar filtros</a>
@@ -444,68 +123,143 @@ body {
     </form>
   </div>
 
-  <!-- KPIs -->
+  <!-- ══════════════════════════════
+       LÍNEA LAVANDA
+  ══════════════════════════════ -->
+  <div class="kpi-group-title">🪻 Línea Lavanda</div>
   <div class="kpis-grid">
-    <div class="kpi-card consumo">
+
+    <div class="kpi-card kpi-lav">
       <div class="kpi-header">
         <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 8 kg</div>
+        <div class="kpi-label">Consumo bolsas 8 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value">{{ data.consumo_8|default:"0" }}</div>
+      <div class="kpi-value consumo-val">{{ data.consumo_8_lav|default:"0" }}</div>
       <div class="kpi-footer">Unidades consumidas en el período</div>
     </div>
 
-    <div class="kpi-card consumo">
+    <div class="kpi-card kpi-lav">
       <div class="kpi-header">
         <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 20 kg</div>
+        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value">{{ data.consumo_20|default:"0" }}</div>
+      <div class="kpi-value consumo-val">{{ data.consumo_20_lav|default:"0" }}</div>
       <div class="kpi-footer">Unidades consumidas en el período</div>
     </div>
 
-    <div class="kpi-card stock">
+    <div class="kpi-card kpi-lav">
       <div class="kpi-header">
         <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 8 kg</div>
+        <div class="kpi-label">Stock bodega 8 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_8 < 0 %}status-bad{% endif %}">
-        {{ data.inventario_8|default:"0" }}
-      </div>
+      <div class="kpi-value {% if data.inventario_8_lav < 0 %}status-bad{% endif %}">{{ data.inventario_8_lav|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_8 < 0 %}
-          ⚠️ Stock negativo - revisar
-        {% elif data.inventario_8 < 100 %}
-          ⚡ Stock bajo - considerar reposición
-        {% else %}
-          ✓ Stock disponible
-        {% endif %}
+        {% if data.inventario_8_lav < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_8_lav < 50 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
 
-    <div class="kpi-card stock">
+    <div class="kpi-card kpi-lav">
       <div class="kpi-header">
         <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 20 kg</div>
+        <div class="kpi-label">Stock bodega 20 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_20 < 0 %}status-bad{% endif %}">
-        {{ data.inventario_20|default:"0" }}
-      </div>
+      <div class="kpi-value {% if data.inventario_20_lav < 0 %}status-bad{% endif %}">{{ data.inventario_20_lav|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_20 < 0 %}
-          ⚠️ Stock negativo - revisar
-        {% elif data.inventario_20 < 100 %}
-          ⚡ Stock bajo - considerar reposición
-        {% else %}
-          ✓ Stock disponible
-        {% endif %}
+        {% if data.inventario_20_lav < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_20_lav < 50 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
+
+  </div>
+
+  <!-- ══════════════════════════════
+       LÍNEA CARBÓN ACTIVADO — LAVANDA
+  ══════════════════════════════ -->
+  <div class="kpi-group-title">🖤 Línea Carbón Activado — Lavanda</div>
+  <div class="kpis-grid">
+
+    <div class="kpi-card kpi-carbon">
+      <div class="kpi-header">
+        <div class="kpi-icon">📤</div>
+        <div class="kpi-label">Consumo bolsas 8 kg<br><small>Carbón activado</small></div>
+      </div>
+      <div class="kpi-value consumo-val">{{ data.consumo_8_carbon|default:"0" }}</div>
+      <div class="kpi-footer">Unidades consumidas en el período</div>
+    </div>
+
+    <div class="kpi-card kpi-carbon">
+      <div class="kpi-header">
+        <div class="kpi-icon">📤</div>
+        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Carbón activado</small></div>
+      </div>
+      <div class="kpi-value consumo-val">{{ data.consumo_20_carbon|default:"0" }}</div>
+      <div class="kpi-footer">Unidades consumidas en el período</div>
+    </div>
+
+    <div class="kpi-card kpi-carbon">
+      <div class="kpi-header">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Stock bodega 8 kg<br><small>Carbón activado</small></div>
+      </div>
+      <div class="kpi-value {% if data.inventario_8_carbon < 0 %}status-bad{% endif %}">{{ data.inventario_8_carbon|default:"0" }}</div>
+      <div class="kpi-footer">
+        {% if data.inventario_8_carbon < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_8_carbon < 50 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-carbon">
+      <div class="kpi-header">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Stock bodega 20 kg<br><small>Carbón activado</small></div>
+      </div>
+      <div class="kpi-value {% if data.inventario_20_carbon < 0 %}status-bad{% endif %}">{{ data.inventario_20_carbon|default:"0" }}</div>
+      <div class="kpi-footer">
+        {% if data.inventario_20_carbon < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_20_carbon < 50 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════
+       LÍNEA TALCO DE BEBÉ CON CARBÓN
+  ══════════════════════════════ -->
+  <div class="kpi-group-title">🩵 Línea Carbón Activado — Talco de Bebé</div>
+  <div class="kpis-grid" style="max-width:560px;">
+
+    <div class="kpi-card kpi-talco">
+      <div class="kpi-header">
+        <div class="kpi-icon">📤</div>
+        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Talco de bebé</small></div>
+      </div>
+      <div class="kpi-value consumo-val">{{ data.consumo_20_talco|default:"0" }}</div>
+      <div class="kpi-footer">Unidades consumidas en el período</div>
+    </div>
+
+    <div class="kpi-card kpi-talco">
+      <div class="kpi-header">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Stock bodega 20 kg<br><small>Talco de bebé</small></div>
+      </div>
+      <div class="kpi-value {% if data.inventario_20_talco < 0 %}status-bad{% endif %}">{{ data.inventario_20_talco|default:"0" }}</div>
+      <div class="kpi-footer">
+        {% if data.inventario_20_talco < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_20_talco < 20 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
+      </div>
+    </div>
+
   </div>
 
   <!-- Alerta SKUs sin mapeo -->
   {% if data.skus_sin_mapa %}
-  <div class="alert-warning">
+  <div class="alert-warning" style="margin-top:28px;">
     <div>
       <strong>SKUs sin mapeo detectados:</strong>
       {{ data.skus_sin_mapa|join:", " }}
@@ -513,7 +267,7 @@ body {
   </div>
   {% endif %}
 
-  <!-- Tabla de detalles -->
+  <!-- Tabla detalle -->
   <div class="section-header">
     <h2>Detalle de movimientos</h2>
   </div>
@@ -525,10 +279,13 @@ body {
           <tr>
             <th>SKU</th>
             <th>Producto</th>
-            <th>Tipo documento</th>
+            <th>Tipo doc.</th>
             <th>Unidades</th>
-            <th>Bolsas 8 kg</th>
-            <th>Bolsas 20 kg</th>
+            <th class="col-lav">B8 Lav.</th>
+            <th class="col-lav">B20 Lav.</th>
+            <th class="col-carbon">B8 Carbón</th>
+            <th class="col-carbon">B20 Carbón</th>
+            <th class="col-talco">B20 Talco</th>
           </tr>
         </thead>
         <tbody>
@@ -537,17 +294,20 @@ body {
             <td><strong>{{ r.sku }}</strong></td>
             <td>{{ r.nombre|default:"-" }}</td>
             <td>
-              <span class="badge {% if r.tipo_doc == 'entrada' %}badge-entrada{% else %}badge-salida{% endif %}">
+              <span class="badge {% if r.tipo_doc == 'nota_credito' %}badge-nc{% else %}badge-venta{% endif %}">
                 {{ r.tipo_doc }}
               </span>
             </td>
             <td>{{ r.unidades_sku|default:"0" }}</td>
-            <td>{{ r.bolsas_8|default:"0" }}</td>
-            <td>{{ r.bolsas_20|default:"0" }}</td>
+            <td class="{% if r.bolsas_8_lav %}col-lav{% else %}zero{% endif %}">{{ r.bolsas_8_lav|default:"0" }}</td>
+            <td class="{% if r.bolsas_20_lav %}col-lav{% else %}zero{% endif %}">{{ r.bolsas_20_lav|default:"0" }}</td>
+            <td class="{% if r.bolsas_8_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_8_carbon|default:"0" }}</td>
+            <td class="{% if r.bolsas_20_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_20_carbon|default:"0" }}</td>
+            <td class="{% if r.bolsas_20_talco %}col-talco{% else %}zero{% endif %}">{{ r.bolsas_20_talco|default:"0" }}</td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6">
+            <td colspan="9">
               <div class="empty-state">
                 <strong>Sin movimientos en el período seleccionado</strong>
                 <p>Ajusta los filtros de fecha para ver más información</p>
