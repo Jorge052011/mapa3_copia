@@ -813,6 +813,9 @@ def resumen_mensual(request):
             "hasta": hasta,
             "hoy": hoy,
             "costo_por_kg": costo_por_kg,
+            "costo_promedio_ponderado": costo_promedio_para_mes(hoy),
+            "costo_minimo": min((imp["costo_por_kg"] for imp in todas_importaciones), default=Decimal("0")),
+            "costo_maximo": max((imp["costo_por_kg"] for imp in todas_importaciones), default=Decimal("0")),
         },
     )
 

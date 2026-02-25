@@ -455,7 +455,12 @@ body {
       <span class="info-icon">💰</span>
       <div>
         <div class="info-label">Costo promedio/kg</div>
-        <div class="info-value">$ {{ costo_por_kg|floatformat:0 }}</div>
+        <div class="info-value">$ {{ costo_promedio_ponderado|floatformat:0 }}</div>
+        {% if costo_minimo != costo_maximo %}
+        <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
+          Rango: ${{ costo_minimo|floatformat:0 }} – ${{ costo_maximo|floatformat:0 }}
+        </div>
+        {% endif %}
       </div>
     </div>
 
