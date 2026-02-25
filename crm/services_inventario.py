@@ -12,9 +12,9 @@ from .models import VentaItem, Venta
 # =============================================================
 STOCK_INICIAL_8_LAV    = 1095 - 4   # bolsas 8kg lavanda (original)
 STOCK_INICIAL_20_LAV   = 862 - 8    # bolsas 20kg lavanda (original)
-STOCK_INICIAL_8_CARBON  = 999       # bolsas 8kg lavanda con carbón activado
+STOCK_INICIAL_8_CARBON  = 999 - 4   # bolsas 8kg lavanda con carbón activado
 STOCK_INICIAL_20_CARBON = 750       # bolsas 20kg lavanda con carbón activado
-STOCK_INICIAL_20_TALCO  = 150       # bolsas 20kg talco de bebé con carbón activado
+STOCK_INICIAL_20_TALCO  = 150 - 1      # bolsas 20kg talco de bebé con carbón activado
 
 # =============================================================
 # MAPA SKU -> (b8_lav, b20_lav, b8_carbon, b20_carbon, b20_talco)
