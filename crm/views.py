@@ -467,7 +467,7 @@ def dashboard(request):
         .filter(venta__fecha__date__gte=desde, venta__fecha__date__lte=hasta)
         .exclude(venta__tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
         .select_related('producto')
-        .values("producto__nombre")
+        .values("producto__id", "producto__nombre")
         .annotate(kilos=Sum(kilos_expr))
         .order_by("-kilos")[:10]
     )
