@@ -675,6 +675,45 @@ def resumen_mensual(request):
     if desde > hasta:
         desde, hasta = hasta, desde
 
+    # ─────────────────────────────────────────────────────────────────
+    # Costo promedio ponderado POR MES
+    # Para cada mes usamos las importaciones cuya fecha es <= ese mes,
+    # ponderadas por sus kilos_ingresados (proxy del stock disponible
+    # en ese período). Así meses vendidos con material a $405 no se
+    # recalculan al precio nuevo de $227.
+    # ─────────────────────────────────────────────────────────────────
+    todas_importaciones = list(
+        Importacion.objects.filter(activo=True).order_by("fecha")
+        .values("fecha", "costo_por_kg", "kilos_ingresados", "merma_kg")
+    )
+
+    def costo_promedio_para_mes(mes_date):
+        """
+        Promedio ponderado por kilos de las importaciones
+        disponibles hasta el mes dado (inclusive).
+        """
+        disponibles = [
+            imp for imp in todas_importaciones
+            if imp["fecha"] <= mes_date
+        ]
+        if not disponibles:
+            disponibles = todas_importaciones[:1]
+        if not disponibles:
+            return Decimal("0")
+
+        total_kilos = Decimal("0")
+        total_valor = Decimal("0")
+        for imp in disponibles:
+            kilos_netos = (imp["kilos_ingresados"] or Decimal("0")) - (imp["merma_kg"] or Decimal("0"))
+            costo = imp["costo_por_kg"] or Decimal("0")
+            total_kilos += kilos_netos
+            total_valor += kilos_netos * costo
+
+        if total_kilos <= 0:
+            return Decimal("0")
+        return (total_valor / total_kilos).quantize(Decimal("0.01"))
+
+    # Costo actual (para mostrarlo como referencia en el template)
     imp_activa = Importacion.objects.filter(activo=True).order_by("-fecha").first()
     costo_por_kg = imp_activa.costo_por_kg if imp_activa else Decimal("0")
 
@@ -730,7 +769,8 @@ def resumen_mensual(request):
         ventas_netas = bruto - notas
         neto_real = ventas_netas
 
-        costo = (kilos * (costo_por_kg or Decimal("0"))).quantize(Decimal("0.01"))
+        costo_kg_mes = costo_promedio_para_mes(mes)
+        costo = (kilos * costo_kg_mes).quantize(Decimal("0.01"))
         margen_bruto = neto_real - costo
 
         gastos = gastos_map.get(mes, Decimal("0"))
@@ -745,6 +785,7 @@ def resumen_mensual(request):
             "neto": neto_real,
             "cantidad_ventas": r["cantidad_ventas"],
             "costo": costo,
+            "costo_kg_mes": costo_kg_mes,
             "margen_bruto": margen_bruto,
             "gastos": gastos,
             "utilidad": utilidad,
