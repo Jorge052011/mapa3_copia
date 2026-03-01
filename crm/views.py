@@ -388,7 +388,7 @@ def dashboard(request):
             hasta = hoy
         except (ValueError, TypeError):
             inicio_mes = hoy.replace(day=1)
-            desde = inicio_mes - timedelta(days=180)
+            desde = inicio_mes - relativedelta(months=12)
             hasta = hoy
     elif desde_param and hasta_param:
         desde = parse_date(desde_param) if desde_param else None
@@ -396,13 +396,13 @@ def dashboard(request):
 
         if not desde or not hasta:
             inicio_mes = hoy.replace(day=1)
-            desde = inicio_mes - timedelta(days=180)
+            desde = inicio_mes - relativedelta(months=12)
             hasta = hoy
         elif desde > hasta:
             desde, hasta = hasta, desde
     else:
         inicio_mes = hoy.replace(day=1)
-        desde = inicio_mes - timedelta(days=180)
+        desde = inicio_mes - relativedelta(months=12)
         hasta = hoy
 
     # ============================================
@@ -659,7 +659,7 @@ def dashboard(request):
 def resumen_mensual(request):
     hoy = timezone.localdate()
     inicio_mes = hoy.replace(day=1)
-    default_desde = inicio_mes - timedelta(days=180)
+    default_desde = inicio_mes - relativedelta(months=12)
     default_hasta = hoy
 
     desde_str = (request.GET.get("desde") or "").strip()
