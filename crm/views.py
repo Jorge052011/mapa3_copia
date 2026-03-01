@@ -1,6 +1,7 @@
 # crm/views.py
 from decimal import Decimal
 from datetime import timedelta, date
+from dateutil.relativedelta import relativedelta
 import json
 import logging
 from calendar import monthrange
@@ -458,7 +459,7 @@ def dashboard(request):
 
     # Top productos
     kilos_expr = ExpressionWrapper(
-        F("cantidad") * F("producto__peso_kg"),
+        F("cantidad") * Coalesce(F("producto__peso_kg"), Value(0)),
         output_field=DecimalField(max_digits=12, decimal_places=2),
     )
 
@@ -601,8 +602,7 @@ def dashboard(request):
     # Meses disponibles (últimos 12 meses)
     meses_disponibles = []
     for i in range(12):
-        fecha_mes = hoy - timedelta(days=30 * i)
-        primer_dia = fecha_mes.replace(day=1)
+        primer_dia = hoy.replace(day=1) - relativedelta(months=i)
         meses_disponibles.append({
             'valor': primer_dia.strftime('%Y-%m'),
             'texto': primer_dia.strftime('%B %Y').capitalize()
