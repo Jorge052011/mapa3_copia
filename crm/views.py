@@ -469,7 +469,7 @@ def dashboard(request):
         .select_related('producto')
         .values("producto__id", "producto__nombre")
         .annotate(kilos=Sum(kilos_expr))
-        .order_by("-kilos")[:10]
+        .order_by("-kilos")[:15]
     )
 
     prod_labels = [p["producto__nombre"] for p in top_productos_qs]
