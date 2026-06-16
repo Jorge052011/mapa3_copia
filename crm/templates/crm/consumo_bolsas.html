@@ -23,6 +23,8 @@
   --carbon-dk:#1e293b;
   --talco:    #0ea5e9;
   --talco-dk: #0284c7;
+  --cafe:     #92400e;
+  --cafe-dk:  #78350f;
 }
 body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; }
 .inventory-container { max-width:1400px; margin:0 auto; padding:24px 16px; }
@@ -52,16 +54,19 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
 .kpi-lav::before    { background:linear-gradient(180deg,var(--lav) 0%,var(--lav-dk) 100%); }
 .kpi-carbon::before { background:linear-gradient(180deg,var(--carbon) 0%,var(--carbon-dk) 100%); }
 .kpi-talco::before  { background:linear-gradient(180deg,var(--talco) 0%,var(--talco-dk) 100%); }
+.kpi-cafe::before   { background:linear-gradient(180deg,var(--cafe) 0%,var(--cafe-dk) 100%); }
 .kpi-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .kpi-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
 .kpi-lav    .kpi-icon { background:rgba(139,92,246,.1); }
 .kpi-carbon .kpi-icon { background:rgba(51,65,85,.1); }
 .kpi-talco  .kpi-icon { background:rgba(14,165,233,.1); }
+.kpi-cafe   .kpi-icon { background:rgba(146,64,14,.1); }
 .kpi-label { font-size:13px; color:var(--text-muted); font-weight:500; flex:1; line-height:1.3; }
 .kpi-value { font-size:40px; font-weight:800; line-height:1; margin-top:4px; }
 .kpi-lav    .kpi-value { background:linear-gradient(135deg,var(--lav) 0%,var(--lav-dk) 100%);    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .kpi-carbon .kpi-value { background:linear-gradient(135deg,var(--carbon) 0%,var(--carbon-dk) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .kpi-talco  .kpi-value { background:linear-gradient(135deg,var(--talco) 0%,var(--talco-dk) 100%);  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-cafe   .kpi-value { background:linear-gradient(135deg,var(--cafe) 0%,var(--cafe-dk) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .kpi-value.consumo-val { background:linear-gradient(135deg,var(--warning) 0%,#f97316 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .kpi-value.status-bad  { background:linear-gradient(135deg,var(--danger) 0%,#dc2626 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .kpi-footer { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); }
@@ -83,6 +88,7 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
 .col-lav    { color:var(--lav);    font-weight:600; }
 .col-carbon { color:var(--carbon); font-weight:600; }
 .col-talco  { color:var(--talco);  font-weight:600; }
+.col-cafe   { color:var(--cafe);   font-weight:600; }
 .zero { color:#cbd5e1; }
 .badge { display:inline-block; padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
 .badge-nc    { background:rgba(16,185,129,.1); color:#059669; }
@@ -257,6 +263,37 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
 
   </div>
 
+
+  <!-- ══════════════════════════════
+       LÍNEA CAFÉ CON CARBÓN ACTIVADO
+  ══════════════════════════════ -->
+  <div class="kpi-group-title">☕ Línea Carbón Activado — Café</div>
+  <div class="kpis-grid" style="max-width:560px;">
+
+    <div class="kpi-card kpi-cafe">
+      <div class="kpi-header">
+        <div class="kpi-icon">📤</div>
+        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Aroma café con carbón activado</small></div>
+      </div>
+      <div class="kpi-value consumo-val">{{ data.consumo_20_cafe|default:"0" }}</div>
+      <div class="kpi-footer">Unidades consumidas en el período</div>
+    </div>
+
+    <div class="kpi-card kpi-cafe">
+      <div class="kpi-header">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Stock bodega 20 kg<br><small>Aroma café con carbón activado</small></div>
+      </div>
+      <div class="kpi-value {% if data.inventario_20_cafe < 0 %}status-bad{% endif %}">{{ data.inventario_20_cafe|default:"0" }}</div>
+      <div class="kpi-footer">
+        {% if data.inventario_20_cafe < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.inventario_20_cafe < 20 %}⚡ Stock bajo - reponer pronto
+        {% else %}✓ Stock disponible{% endif %}
+      </div>
+    </div>
+
+  </div>
+
   <!-- Alerta SKUs sin mapeo -->
   {% if data.skus_sin_mapa %}
   <div class="alert-warning" style="margin-top:28px;">
@@ -286,6 +323,7 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
             <th class="col-carbon">B8 Carbón</th>
             <th class="col-carbon">B20 Carbón</th>
             <th class="col-talco">B20 Talco</th>
+            <th class="col-cafe">B20 Café</th>
           </tr>
         </thead>
         <tbody>
@@ -304,10 +342,11 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
             <td class="{% if r.bolsas_8_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_8_carbon|default:"0" }}</td>
             <td class="{% if r.bolsas_20_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_20_carbon|default:"0" }}</td>
             <td class="{% if r.bolsas_20_talco %}col-talco{% else %}zero{% endif %}">{{ r.bolsas_20_talco|default:"0" }}</td>
+            <td class="{% if r.bolsas_20_cafe %}col-cafe{% else %}zero{% endif %}">{{ r.bolsas_20_cafe|default:"0" }}</td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="9">
+            <td colspan="10">
               <div class="empty-state">
                 <strong>Sin movimientos en el período seleccionado</strong>
                 <p>Ajusta los filtros de fecha para ver más información</p>
