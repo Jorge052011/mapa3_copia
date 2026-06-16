@@ -23,7 +23,7 @@ STOCK_INICIAL_20_CARBON = 400 + 750
 STOCK_INICIAL_20_TALCO = (300 + 150) - 1
 
 # Reemplaza 0 por la cantidad real de bolsas de 20 kg aroma café recibidas.
-STOCK_INICIAL_20_CAFE = 0
+STOCK_INICIAL_20_CAFE = 50
 
 
 # =============================================================
