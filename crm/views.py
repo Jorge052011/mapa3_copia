@@ -767,7 +767,7 @@ def resumen_mensual(request):
         notas = r["notas_credito"] or Decimal("0")
 
         ventas_netas = bruto - notas
-        neto_real = ventas_netas
+        neto_real = (ventas_netas / Decimal("1.19")).quantize(Decimal("0.01"))
 
         costo_kg_mes = costo_promedio_para_mes(mes)
         costo = (kilos * costo_kg_mes).quantize(Decimal("0.01"))
