@@ -16,11 +16,11 @@ from .models import VentaItem, Venta
 #   bolsas_20_cafe,
 # )
 # =============================================================
-STOCK_INICIAL_8_LAV = 1095 - 4
+STOCK_INICIAL_8_LAV = 1095 - 6
 STOCK_INICIAL_20_LAV = (550 + 862) - 9
-STOCK_INICIAL_8_CARBON = 999 - 12
-STOCK_INICIAL_20_CARBON = 400 + 750-7
-STOCK_INICIAL_20_TALCO = (300 + 150) - 2
+STOCK_INICIAL_8_CARBON = 999 - 14
+STOCK_INICIAL_20_CARBON = 400 + 750-2-6
+STOCK_INICIAL_20_TALCO = (300 + 150) - 1-2
 
 # Reemplaza 0 por la cantidad real de bolsas de 20 kg aroma café recibidas.
 STOCK_INICIAL_20_CAFE = 50
