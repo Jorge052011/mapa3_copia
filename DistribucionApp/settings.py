@@ -39,7 +39,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost:8000",
     "https://*.app.github.dev",
     "https://*.githubpreview.dev",
-    "ubuntu-server.tail773deb.ts.net:8443",
+    "https://ubuntu-server.tail773deb.ts.net:8443",
 ]
 
 
