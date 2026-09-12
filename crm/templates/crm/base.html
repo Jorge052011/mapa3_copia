@@ -3,19 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Planificador de Rutas{% endblock %}</title>
+    <title>{% block title %}CRM{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=99">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
-        <h1>Planificador de Rutas de Distribución</h1>
+        <h1>Gestión Comercial</h1>
         <nav class="main-nav">
-          <a href="{% url 'mapa' %}"
-            class="{% if request.resolver_match.url_name == 'mapa' %}active{% endif %}">
-            🗺️ Rutas
-          </a>
           <a href="{% url 'crm:crear_cliente' %}"
             class="{% if request.resolver_match.url_name == 'crear_cliente' %}active{% endif %}">
             ➕ Crear cliente
@@ -45,9 +41,7 @@
             📦 Inventario bolsas
           </a>
 
-          
 
-          
         </nav>
     </header>
 
@@ -71,9 +65,6 @@
       </div>
     </div>
 
-    <!-- ✅ CARGAR main.js ANTES de los scripts específicos de cada página -->
-    <script src="{% static 'js/main.js' %}?v=99"></script>
-    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
