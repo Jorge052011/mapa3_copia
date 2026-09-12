@@ -1,9 +1,11 @@
 from django.urls import path
 from . import views
+from django.views.generic.base import RedirectView
 
 app_name = "crm"
 
 urlpatterns = [
+    path("", RedirectView.as_view(pattern_name='crm:dashboard', permanent=False)),
     # Clientes
     path("clientes/", views.clientes_list, name="clientes_list"),
     path("clientes/nuevo/", views.crear_cliente, name="crear_cliente"),
