@@ -979,7 +979,7 @@ def consumo_bolsas_view(request):
 @login_required
 def ajustar_inventario(request):
     """Vista para ajuste manual de inventario de bolsas."""
-    
+
     TIPOS_BOLSA_DICT = {
         "8_lav": "Lavanda 8 kg",
         "20_lav": "Lavanda 20 kg",
@@ -988,17 +988,37 @@ def ajustar_inventario(request):
         "20_talco": "Talco 20 kg",
         "20_cafe": "Café 20 kg",
     }
-    
+
     if request.method == "POST":
         tipo_bolsa = request.POST.get("tipo_bolsa")
         stock_fisico = request.POST.get("stock_fisico")
         motivo = request.POST.get("motivo")
         observacion = request.POST.get("observacion", "").strip()
-        
-        # Obtener stock sistema antes y calcular diferencia dentro de transacción atómica
+
+        # Validaciones que NO necesitan consultar inventario
+        if tipo_bolsa not in TIPOS_BOLSA_DICT:
+            messages.error(request, "Tipo de bolsa inválido.")
+            return redirect("crm:consumo_bolsas")
+
+        if motivo not in dict(MOTIVOS_AJUSTE).keys():
+            messages.error(request, "Motivo inválido.")
+            return redirect("crm:consumo_bolsas")
+
+        # Validar stock_fisico entero >= 0
+        try:
+            stock_fisico = int(stock_fisico)
+            if stock_fisico < 0:
+                messages.error(request, "El stock físico no puede ser negativo.")
+                return redirect("crm:consumo_bolsas")
+        except (ValueError, TypeError):
+            messages.error(request, "Stock físico debe ser un entero válido.")
+            return redirect("crm:consumo_bolsas")
+
+        # Cálculo y creación dentro de transacción atómica
         from .services_inventario import inventario_bolsas_actual
         with transaction.atomic():
             data = inventario_bolsas_actual()
+
             stocks_calculados = {
                 "8_lav": data["stock_actual_8_lav"],
                 "20_lav": data["stock_actual_20_lav"],
@@ -1007,29 +1027,8 @@ def ajustar_inventario(request):
                 "20_talco": data["stock_actual_20_talco"],
                 "20_cafe": data["stock_actual_20_cafe"],
             }
+
             stock_sistema_before = stocks_calculados[tipo_bolsa]
-
-            # Validar tipo_bolsa
-            if tipo_bolsa not in TIPOS_BOLSA_DICT:
-                messages.error(request, "Tipo de bolsa inválido.")
-                return redirect("crm:consumo_bolsas")
-
-            # Validar motivo
-            if motivo not in dict(MOTIVOS_AJUSTE).keys():
-                messages.error(request, "Motivo inválido.")
-                return redirect("crm:consumo_bolsas")
-
-            # Validar stock_fisico entero >= 0
-            try:
-                stock_fisico = int(stock_fisico)
-                if stock_fisico < 0:
-                    messages.error(request, "El stock físico no puede ser negativo.")
-                    return redirect("crm:consumo_bolsas")
-            except (ValueError, TypeError):
-                messages.error(request, "Stock físico debe ser un entero válido.")
-                return redirect("crm:consumo_bolsas")
-
-            # Calcular diferencia (backend)
             diferencia = stock_fisico - stock_sistema_before
 
             # No crear ajuste si diferencia es 0
@@ -1040,8 +1039,7 @@ def ajustar_inventario(request):
                 )
                 return redirect("crm:consumo_bolsas")
 
-            # Crear ajuste en transacción atómica
-            ajuste = InventarioBolsasAjuste.objects.create(
+            InventarioBolsasAjuste.objects.create(
                 usuario=request.user,
                 tipo_bolsa=tipo_bolsa,
                 stock_sistema_before=stock_sistema_before,
@@ -1056,21 +1054,21 @@ def ajustar_inventario(request):
             f"Ajuste guardado: {TIPOS_BOLSA_DICT[tipo_bolsa]}, {stock_sistema_before} → {stock_fisico} bolsas ({diferencia})."
         )
         return redirect("crm:consumo_bolsas")
-    
+
     # GET: mostrar formulario
     tipo = request.GET.get("tipo") or "20_lav"
-    
+
     # Validar tipo en GET - si es inválido, redirigir
     if tipo and tipo not in TIPOS_BOLSA_DICT:
         messages.error(request, "Tipo de bolsa inválido.")
         return redirect("crm:consumo_bolsas")
-    
+
     # Obtener stock para mostrar
     from .services_inventario import inventario_bolsas_actual
     data = inventario_bolsas_actual()
     stock_actual = data[f"stock_actual_{tipo}"]
     nombre_producto = TIPOS_BOLSA_DICT.get(tipo, "Lavanda 20 kg")
-    
+
     context = {
         "tipo_seleccionado": tipo,
         "nombre_producto": nombre_producto,
