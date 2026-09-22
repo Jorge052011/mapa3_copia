@@ -281,7 +281,6 @@ def get_ajustes_bolsas():
 
 def inventario_bolsas_actual():
     """Stock actual incorporando ajustes: stock_base - consumo + ajustes."""
-    from .services_inventario import consumo_bolsas, get_ajustes_bolsas
     data = consumo_bolsas()
     ajustes = get_ajustes_bolsas()
 
