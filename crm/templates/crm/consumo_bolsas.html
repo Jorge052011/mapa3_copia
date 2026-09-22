@@ -158,10 +158,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 8 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_8_lav < 0 %}status-bad{% endif %}">{{ data.inventario_8_lav|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_8_lav < 0 %}status-bad{% endif %}">{{ data.stock_actual_8_lav|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_8_lav < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_8_lav < 50 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_8_lav < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_8_lav < 50 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -171,10 +171,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 20 kg<br><small>Lavanda</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_20_lav < 0 %}status-bad{% endif %}">{{ data.inventario_20_lav|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_20_lav < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_lav|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_20_lav < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_20_lav < 50 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_20_lav < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_20_lav < 50 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -210,10 +210,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 8 kg<br><small>Carbón activado</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_8_carbon < 0 %}status-bad{% endif %}">{{ data.inventario_8_carbon|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_8_carbon < 0 %}status-bad{% endif %}">{{ data.stock_actual_8_carbon|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_8_carbon < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_8_carbon < 50 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_8_carbon < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_8_carbon < 50 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -223,10 +223,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 20 kg<br><small>Carbón activado</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_20_carbon < 0 %}status-bad{% endif %}">{{ data.inventario_20_carbon|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_20_carbon < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_carbon|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_20_carbon < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_20_carbon < 50 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_20_carbon < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_20_carbon < 50 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -253,10 +253,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 20 kg<br><small>Talco de bebé</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_20_talco < 0 %}status-bad{% endif %}">{{ data.inventario_20_talco|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_20_talco < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_talco|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_20_talco < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_20_talco < 20 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_20_talco < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_20_talco < 20 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -284,10 +284,10 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
         <div class="kpi-icon">📦</div>
         <div class="kpi-label">Stock bodega 20 kg<br><small>Aroma café con carbón activado</small></div>
       </div>
-      <div class="kpi-value {% if data.inventario_20_cafe < 0 %}status-bad{% endif %}">{{ data.inventario_20_cafe|default:"0" }}</div>
+      <div class="kpi-value {% if data.stock_actual_20_cafe < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_cafe|default:"0" }}</div>
       <div class="kpi-footer">
-        {% if data.inventario_20_cafe < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.inventario_20_cafe < 20 %}⚡ Stock bajo - reponer pronto
+        {% if data.stock_actual_20_cafe < 0 %}⚠️ Stock negativo - revisar
+        {% elif data.stock_actual_20_cafe < 20 %}⚡ Stock bajo - reponer pronto
         {% else %}✓ Stock disponible{% endif %}
       </div>
     </div>
@@ -360,4 +360,19 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
   </div>
 
 </div>
+
+<!-- Sección: Ajustar inventario -->
+<div class="alert alert-warning" style="margin-top: 24px;">
+  <h4>📦 Ajustar inventario</h4>
+  <p>Si después de contar físicamente las bolsas encontrás diferencias con el sistema, podés hacer un ajuste aquí. Cada tipo de bolsa se ajusta de forma independiente.</p>
+  <div style="margin-top: 16px;">
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=8_lav" class="btn btn-outline">Lavanda 8 kg</a>
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_lav" class="btn btn-outline">Lavanda 20 kg</a>
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=8_carbon" class="btn btn-outline">Carbón 8 kg</a>
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_carbon" class="btn btn-outline">Carbón 20 kg</a>
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_talco" class="btn btn-outline">Talco 20 kg</a>
+    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_cafe" class="btn btn-outline">Café 20 kg</a>
+  </div>
+</div>
+
 {% endblock %}

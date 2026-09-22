@@ -256,3 +256,49 @@ def consumo_bolsas(desde=None, hasta=None):
             [sku for sku in skus_sin_mapa if sku]
         ),
     }
+
+
+def get_ajustes_bolsas():
+    """Retorna diccionario con suma histórica de ajustes por tipo de bolsa."""
+    from .models import InventarioBolsasAjuste
+    ajustes = InventarioBolsasAjuste.objects.values("tipo_bolsa").annotate(
+        suma=Sum("diferencia")
+    )
+    resultado = {
+        "8_lav": 0,
+        "20_lav": 0,
+        "8_carbon": 0,
+        "20_carbon": 0,
+        "20_talco": 0,
+        "20_cafe": 0,
+    }
+    for a in ajustes:
+        clave = a["tipo_bolsa"]
+        if clave in resultado:
+            resultado[clave] = a["suma"] or 0
+    return resultado
+
+
+def inventario_bolsas_actual():
+    """Stock actual incorporando ajustes: stock_base - consumo + ajustes."""
+    data = consumo_bolsas()
+    ajustes = get_ajustes_bolsas()
+
+    data["stock_actual_8_lav"] = data["stock_inicial_8_lav"] - data["consumo_8_lav"] + ajustes["8_lav"]
+    data["stock_actual_20_lav"] = data["stock_inicial_20_lav"] - data["consumo_20_lav"] + ajustes["20_lav"]
+    data["stock_actual_8_carbon"] = data["stock_inicial_8_carbon"] - data["consumo_8_carbon"] + ajustes["8_carbon"]
+    data["stock_actual_20_carbon"] = data["stock_inicial_20_carbon"] - data["consumo_20_carbon"] + ajustes["20_carbon"]
+    data["stock_actual_20_talco"] = data["stock_inicial_20_talco"] - data["consumo_20_talco"] + ajustes["20_talco"]
+    data["stock_actual_20_cafe"] = data["stock_inicial_20_cafe"] - data["consumo_20_cafe"] + ajustes["20_cafe"]
+
+    data["stock_actual_8"] = (
+        data["stock_actual_8_lav"] + data["stock_actual_8_carbon"]
+    )
+    data["stock_actual_20"] = (
+        data["stock_actual_20_lav"]
+        + data["stock_actual_20_carbon"]
+        + data["stock_actual_20_talco"]
+        + data["stock_actual_20_cafe"]
+    )
+
+    return data
