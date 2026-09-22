@@ -1,10 +1,13 @@
 # crm/models.py
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+
+from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
 
 
 class Cliente(models.Model):
@@ -350,3 +353,56 @@ class GastoOperacional(models.Model):
 
     def __str__(self):
         return f"{self.fecha} - {self.get_tipo_display()} - ${self.monto_neto}"
+
+
+class InventarioBolsasAjuste(models.Model):
+    class MotivoChoices(models.TextChoices):
+        INVENTARIO_FISICO = "inf", "Inventario físico"
+        ERROR_DETECTADO = "ed", "Error detectado"
+        MERMA_PERDA = "mp", "Merma / pérdida"
+        DEVOLUCION = "dv", "Devolución / recuperación"
+        OTRO = "otro", "Otro"
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ajustes_inventario_bolsas",
+    )
+
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    tipo_bolsa = models.CharField(
+        max_length=20,
+        choices=TIPOS_BOLSA,
+    )
+
+    stock_sistema_before = models.IntegerField(
+        help_text="Stock calculado por sistema antes del ajuste"
+    )
+    stock_fisico = models.IntegerField(
+        help_text="Conteo físico ingresado por usuario (entero >= 0)"
+    )
+    diferencia = models.IntegerField(
+        editable=False,
+        help_text="Automático: stock_fisico - stock_sistema_before"
+    )
+
+    motivo = models.CharField(
+        max_length=10,
+        choices=MOTIVOS_AJUSTE,
+    )
+    observacion = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-fecha"]
+        verbose_name = "Ajuste Inventario Bolsas"
+        verbose_name_plural = "Ajustes Inventario Bolsas"
+
+    def __str__(self):
+        return f"{self.get_tipo_bolsa_display()} | {self.fecha:%d/%m/%Y} | S:{self.stock_sistema_before} F:{self.stock_fisico} A:{self.diferencia}"
+
+    def save(self, *args, **kwargs):
+        self.diferencia = self.stock_fisico - self.stock_sistema_before
+        super().save(*args, **kwargs)

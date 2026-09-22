@@ -35,6 +35,9 @@ urlpatterns = [
 
     path("inventario/consumo-bolsas/", views.consumo_bolsas_view, name="consumo_bolsas"),
 
+    # ✅ Nueva ruta para ajustar inventario
+    path("inventario/ajustar/", views.ajustar_inventario, name="ajustar_inventario"),
+
     # Exportar Excel de ventas
     path("ventas/exportar-excel/", views.exportar_ventas_excel, name="exportar_ventas_excel"),
 

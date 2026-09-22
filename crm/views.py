@@ -9,6 +9,7 @@ from calendar import monthrange
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import transaction
 from django.db.models import (
     Sum, Count, Max, Min, Value, DecimalField, Q, DateField, F,
     ExpressionWrapper, Prefetch, OuterRef, Subquery,
@@ -19,7 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional
+from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional, InventarioBolsasAjuste
 from .forms import ClienteForm, VentaForm, VentaItemForm
 
 logger = logging.getLogger(__name__)
@@ -950,7 +951,7 @@ def inventario(request):
 
 def consumo_bolsas_view(request):
     from django.utils.dateparse import parse_date
-    from .services_inventario import consumo_bolsas
+    from .services_inventario import consumo_bolsas, inventario_bolsas_actual
 
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
@@ -959,12 +960,128 @@ def consumo_bolsas_view(request):
     hasta = parse_date(hasta_str) if hasta_str else None
 
     data = consumo_bolsas(desde=desde, hasta=hasta)
+    data_stock = inventario_bolsas_actual()
+
+    for key in ["stock_actual_8_lav", "stock_actual_20_lav", "stock_actual_8_carbon",
+                "stock_actual_20_carbon", "stock_actual_20_talco", "stock_actual_20_cafe",
+                "stock_actual_8", "stock_actual_20"]:
+        if key in data_stock:
+            data[key] = data_stock[key]
 
     return render(request, "crm/consumo_bolsas.html", {
         "data": data,
         "desde": desde_str or "",
         "hasta": hasta_str or "",
     })
+
+
+@login_required
+def ajustar_inventario(request):
+    """Vista para ajuste manual de inventario de bolsas."""
+    
+    TIPOS_BOLSA_DICT = {
+        "8_lav": "Lavanda 8 kg",
+        "20_lav": "Lavanda 20 kg",
+        "8_carbon": "Carbón 8 kg",
+        "20_carbon": "Carbón 20 kg",
+        "20_talco": "Talco 20 kg",
+        "20_cafe": "Café 20 kg",
+    }
+    
+    if request.method == "POST":
+        tipo_bolsa = request.POST.get("tipo_bolsa")
+        stock_fisico = request.POST.get("stock_fisico")
+        motivo = request.POST.get("motivo")
+        observacion = request.POST.get("observacion", "").strip()
+        
+        # Validar tipo_bolsa
+        if tipo_bolsa not in TIPOS_BOLSA_DICT:
+            messages.error(request, "Tipo de bolsa inválido.")
+            return redirect("crm:consumo_bolsas")
+        
+        motivos_validos = dict(InventarioBolsasAjuste.MotivoChoices.choices).keys()
+        if motivo not in motivos_validos:
+            messages.error(request, "Motivo inválido.")
+            return redirect("crm:consumo_bolsas")
+        
+        # Validar stock_fisico entero >= 0
+        try:
+            stock_fisico = int(stock_fisico)
+            if stock_fisico < 0:
+                messages.error(request, "El stock físico no puede ser negativo.")
+                return redirect("crm:consumo_bolsas")
+        except (ValueError, TypeError):
+            messages.error(request, "Stock físico debe ser un entero válido.")
+            return redirect("crm:consumo_bolsas")
+        
+        # Obtener stock sistema antes (backend)
+        from .services_inventario import inventario_bolsas_actual
+        data = inventario_bolsas_actual()
+        stocks_calculados = {
+            "8_lav": data["stock_actual_8_lav"],
+            "20_lav": data["stock_actual_20_lav"],
+            "8_carbon": data["stock_actual_8_carbon"],
+            "20_carbon": data["stock_actual_20_carbon"],
+            "20_talco": data["stock_actual_20_talco"],
+            "20_cafe": data["stock_actual_20_cafe"],
+        }
+        stock_sistema_before = stocks_calculados[tipo_bolsa]
+        
+        # Calcular diferencia (backend)
+        diferencia = stock_fisico - stock_sistema_before
+        
+        # No crear ajuste si diferencia es 0
+        if diferencia == 0:
+            messages.info(
+                request,
+                f"El inventario físico ({stock_fisico}) coincide con el sistema. No se requiere ajuste."
+            )
+            return redirect("crm:consumo_bolsas")
+
+        # Crear en transacción atómica
+        with transaction.atomic():
+            try:
+                ajuste = InventarioBolsasAjuste.objects.create(
+                    usuario=request.user,
+                    tipo_bolsa=tipo_bolsa,
+                    stock_sistema_before=stock_sistema_before,
+                    stock_fisico=stock_fisico,
+                    diferencia=diferencia,
+                    motivo=motivo,
+                    observacion=observacion,
+                )
+            except Exception as e:
+                messages.error(request, f"Error al guardar ajuste: {e}")
+                return redirect("crm:consumo_bolsas")
+
+            messages.success(
+                request,
+                f"Ajuste guardado: {TIPOS_BOLSA_DICT[tipo_bolsa]}, {stock_sistema_before} → {stock_fisico} bolsas ({diferencia})."
+            )
+            return redirect("crm:consumo_bolsas")
+    
+    # GET: mostrar formulario
+    tipo = request.GET.get("tipo") or "20_lav"
+    
+    # Validar tipo en GET - si es inválido, redirigir
+    if tipo and tipo not in TIPOS_BOLSA_DICT:
+        messages.error(request, "Tipo de bolsa inválido.")
+        return redirect("crm:consumo_bolsas")
+    
+    # Obtener stock para mostrar
+    from .services_inventario import inventario_bolsas_actual
+    data = inventario_bolsas_actual()
+    stock_actual = data[f"stock_actual_{tipo}"]
+    nombre_producto = TIPOS_BOLSA_DICT.get(tipo, "Lavanda 20 kg")
+    
+    context = {
+        "tipo_seleccionado": tipo,
+        "nombre_producto": nombre_producto,
+        "stock_actual": stock_actual,
+        "TIPOS_BOLSA_DICT": TIPOS_BOLSA_DICT,
+        "motivo_choices": InventarioBolsasAjuste.MotivoChoices.choices,
+    }
+    return render(request, "crm/ajustar_inventario.html", context)
 
 
 # -------------------------

@@ -1,0 +1,61 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}Ajuste Inventario de Bolsas{% endblock %}
+{% block extra_head %}
+<style>
+  :root { --primary: #4f46e5; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; }
+  .container { max-width: 600px; margin: 40px auto; padding: 24px; }
+  .form-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .stock-banner { background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0; font-size: 18px; }
+  .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-right: 8px; }
+  .btn-primary { background: #4f46e5; color: #fff; border: none; }
+  .btn-secondary { background: #e2e8f0; color: #1e293b; border: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="form-card">
+    <h2>📦 Ajuste Inventario de Bolsas</h2>
+    
+    <div class="stock-banner">
+      Producto: {{ nombre_producto }}<br>
+      Stock sistema actual: {{ stock_actual }} bolsas
+    </div>
+    
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="tipo_bolsa" value="{{ tipo_seleccionado }}">
+      
+      <div class="form-group">
+        <label>Conteo físico encontrado</label>
+        <input type="number" name="stock_fisico" min="0" required 
+               class="form-input" 
+               value="{{ stock_actual }}"
+               onfocus="this.select()">
+        <small class="text-muted">Debe ser entero >= 0</small>
+      </div>
+      
+      <div class="form-group">
+        <label>Motivo</label>
+        <select name="motivo" required>
+          {% for codigo, nombre in motivo_choices %}
+            <option value="{{ codigo }}">{{ nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Observación (opcional)</label>
+        <textarea name="observacion" rows="3" class="form-input" 
+                  placeholder="Ej: Conteo difería por roturas, humedad, etc."></textarea>
+      </div>
+      
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+        <button type="submit" class="btn btn-primary">💾 Guardar ajuste</button>
+        <a href="{% url 'crm:consumo_bolsas' %}" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
