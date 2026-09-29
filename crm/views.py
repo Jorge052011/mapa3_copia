@@ -827,6 +827,7 @@ def resumen_mensual(request):
 # -------------------------
 @login_required
 def inventario(request):
+    from .services_inventario import stock_actual_post_inventario_kg
     try:
         hoy = timezone.localdate()
 
@@ -884,6 +885,9 @@ def inventario(request):
         # ✅ Stock = Kilos netos disponibles - Kilos vendidos
         stock_kg = (kilos_ingresados_neto - kilos_vendidos_total).quantize(Decimal("0.01"))
 
+        # ✅ Stock actual post-inventario en kg, obtenido de los ajustes de bolsas
+        stock_actual_post_inventario_kg = stock_actual_post_inventario_kg()
+
         kilos_vendidos_ventana = (
             VentaItem.objects.filter(venta__fecha__date__gte=desde_consumo)
             .exclude(venta__tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
@@ -929,6 +933,7 @@ def inventario(request):
             "kilos_ingresados_neto": kilos_ingresados_neto,  # ✅ NUEVO
             "kilos_vendidos_total": kilos_vendidos_total,
             "stock_kg": stock_kg,  # ✅ Ahora refleja el stock real sin merma
+            "stock_actual_post_inventario_kg": stock_actual_post_inventario_kg,  # ✅ Stock actual post-inventario en kg
             "kilos_vendidos_ventana": kilos_vendidos_ventana,
             "consumo_diario": consumo_diario,
             "dias_stock": dias_stock,

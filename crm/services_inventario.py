@@ -302,3 +302,31 @@ def inventario_bolsas_actual():
     )
 
     return data
+
+
+def stock_actual_post_inventario_kg():
+    """Stock actual post-inventario en kilogramos, obtenido de los ajustes de bolsas.
+
+    Convierte el stock por tipo de bolsa a kilogramos usando los pesos:
+    - 8_lav, 8_carbon: 8 kg
+    - 20_lav, 20_carbon, 20_talco, 20_cafe: 20 kg
+
+    Calcula el stock inicial menos el consumo, más los ajustes, y convierte las bolsas a kilogramos.
+    """
+    data = inventario_bolsas_actual()
+
+    pesos = {
+        "8_lav": 8,
+        "20_lav": 20,
+        "8_carbon": 8,
+        "20_carbon": 20,
+        "20_talco": 20,
+        "20_cafe": 20,
+    }
+
+    total_kg = sum(
+        max(data.get(f"stock_actual_{tipo}", 0), 0) * peso
+        for tipo, peso in pesos.items()
+    )
+
+    return total_kg
