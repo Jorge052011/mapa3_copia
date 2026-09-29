@@ -425,9 +425,15 @@ body {
           <td>{{ kilos_vendidos_total|floatformat:0 }} kg</td>
         </tr>
         
+        <!-- Stock actual post-inventario (kg) - obtenido de los ajustes de bolsas -->
+        <tr class="row-info">
+          <th><span class="metric-icon">📦</span>Stock de bolsas con ajustes</th>
+          <td class="value-success" style="font-weight: 700;">{{ stock_actual_post_inventario_kg|floatformat:0 }} kg</td>
+        </tr>
+
         <tr class="row-highlight">
-          <th><span class="metric-icon">📦</span>Stock actual disponible</th>
-          <td class="value-primary value-large">{{ stock_kg|floatformat:0 }} kg</td>
+          <th><span class="metric-icon">📦</span>Stock teórico</th>
+          <td class="value-primary value-large" style="font-weight: 400;">{{ stock_kg|floatformat:0 }} kg</td>
         </tr>
         
         <tr class="row-info">
