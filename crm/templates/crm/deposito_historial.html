@@ -1,0 +1,53 @@
+{% extends 'crm/base.html' %}
+
+{% block content %}
+<h2>Historial del depósito #{{ deposito.id }}</h2>
+
+<p><strong>Fecha de registro:</strong> {{ deposito.fecha|date:"d/m/Y H:i" }}</p>
+<p><strong>Registrado originalmente por:</strong> {{ deposito.registrado_por }}</p>
+<p><strong>Total actual de ventas:</strong> ${{ deposito.monto_ventas|floatformat:0 }}</p>
+<p><strong>Monto depositado actual:</strong> ${{ deposito.monto_depositado|floatformat:0 }}</p>
+<p><strong>Diferencia actual:</strong> ${{ deposito.diferencia|floatformat:0 }}</p>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;">
+  <a class="btn btn-primary" href="{% url 'crm:deposito_editar' deposito.id %}">Editar depósito</a>
+  <a class="btn btn-secondary" href="{% url 'crm:depositos_list' %}">Volver al listado</a>
+</div>
+
+<h3>Modificaciones registradas</h3>
+
+{% if historial %}
+<div style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Fecha y hora</th>
+      <th>Modificado por</th>
+      <th>Total ventas anterior → nuevo</th>
+      <th>Depósito anterior → nuevo</th>
+      <th>Diferencia anterior → nueva</th>
+      <th>Ventas agregadas</th>
+      <th>Ventas quitadas</th>
+      <th>Motivo</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cambio in historial %}
+    <tr>
+      <td>{{ cambio.fecha|date:"d/m/Y H:i:s" }}</td>
+      <td>{{ cambio.modificado_por }}</td>
+      <td>${{ cambio.monto_ventas_anterior|floatformat:0 }} → ${{ cambio.monto_ventas_nuevo|floatformat:0 }}</td>
+      <td>${{ cambio.monto_depositado_anterior|floatformat:0 }} → ${{ cambio.monto_depositado_nuevo|floatformat:0 }}</td>
+      <td>${{ cambio.diferencia_anterior|floatformat:0 }} → ${{ cambio.diferencia_nueva|floatformat:0 }}</td>
+      <td>{{ cambio.ventas_agregadas|default:"—" }}</td>
+      <td>{{ cambio.ventas_quitadas|default:"—" }}</td>
+      <td>{{ cambio.motivo|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>Este depósito todavía no tiene modificaciones registradas.</p>
+{% endif %}
+{% endblock %}

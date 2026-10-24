@@ -18,6 +18,7 @@
   {% csrf_token %}
   {{ form.as_p }}
 
+
   <button type="submit">Guardar</button>
   <a class="button-secondary" href="{% url 'crm:ventas_list' %}">Volver</a>
 </form>

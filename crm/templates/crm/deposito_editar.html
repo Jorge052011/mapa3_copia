@@ -1,0 +1,95 @@
+{% extends 'crm/base.html' %}
+
+{% block content %}
+<h2>Editar depósito #{{ deposito.id }}</h2>
+
+<p><strong>Fecha de registro:</strong> {{ deposito.fecha|date:"d/m/Y H:i" }}</p>
+<p><strong>Registrado originalmente por:</strong> {{ deposito.registrado_por }}</p>
+
+<form method="post" style="padding:16px;background:#f8f9fa;border-radius:6px;">
+  {% csrf_token %}
+
+  <div style="margin-bottom:16px;">
+    <label for="monto_depositado"><strong>Monto efectivamente depositado ($)</strong></label>
+    <input
+      id="monto_depositado"
+      name="monto_depositado"
+      type="number"
+      min="0.01"
+      step="0.01"
+      value="{{ deposito.monto_depositado }}"
+      required
+      style="display:block;width:100%;max-width:360px;padding:9px;margin-top:5px;">
+  </div>
+
+  <h3>Ventas en efectivo asociadas</h3>
+  <p>Marca las ventas que deben quedar incluidas en este depósito. Las ventas asociadas a otro depósito no se pueden seleccionar.</p>
+
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Incluir</th>
+        <th>Venta</th>
+        <th>Fecha</th>
+        <th>Cliente</th>
+        <th>Monto</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for venta in ventas_asociadas %}
+      <tr>
+        <td>
+          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}" checked>
+        </td>
+        <td>#{{ venta.id }}</td>
+        <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+        <td>{{ venta.cliente }}</td>
+        <td>${{ venta.monto_total|floatformat:0 }}</td>
+        <td>Asociada a este depósito</td>
+      </tr>
+      {% endfor %}
+
+      {% for venta in ventas_disponibles %}
+      <tr>
+        <td>
+          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}">
+        </td>
+        <td>#{{ venta.id }}</td>
+        <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+        <td>{{ venta.cliente }}</td>
+        <td>${{ venta.monto_total|floatformat:0 }}</td>
+        <td>Pendiente de depósito</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if not ventas_asociadas and not ventas_disponibles %}
+    <p>No hay ventas disponibles para asociar.</p>
+  {% endif %}
+
+  <div style="margin-top:16px;">
+    <label for="motivo"><strong>Motivo de la modificación (opcional)</strong></label>
+    <textarea id="motivo" name="motivo" rows="3" style="display:block;width:100%;max-width:700px;margin-top:5px;">{{ motivo|default:"" }}</textarea>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    <a class="btn btn-secondary" href="{% url 'crm:depositos_list' %}">Cancelar</a>
+    <a class="btn btn-secondary" href="{% url 'crm:deposito_historial' deposito.id %}">Ver historial</a>
+  </div>
+</form>
+
+<div style="margin-top:24px;padding:16px;border:1px solid #dc3545;border-radius:6px;">
+  <h3>Anular depósito</h3>
+  <p>Esta acción liberará las ventas asociadas para que puedan asignarse a otro depósito. El registro del depósito y su historial se conservarán.</p>
+  <form method="post" action="{% url 'crm:deposito_anular' deposito.id %}"
+        onsubmit="return confirm('¿Confirmas anular este depósito y liberar todas sus ventas?');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Anular depósito</button>
+  </form>
+</div>
+{% endblock %}

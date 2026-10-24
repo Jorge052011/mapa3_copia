@@ -1,0 +1,57 @@
+{% extends 'crm/base.html' %}
+
+{% block content %}
+<h2>Depósitos de ventas</h2>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+  <a class="btn btn-primary" href="{% url 'crm:ventas_list' %}">Volver a ventas</a>
+</div>
+
+{% if depositos %}
+<div style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Depósito / Estado</th>
+      <th>Fecha</th>
+      <th>Ventas asociadas</th>
+      <th>Total ventas</th>
+      <th>Monto depositado</th>
+      <th>Diferencia</th>
+      <th>Registrado por</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for deposito in depositos %}
+    <tr>
+      <td>
+        #{{ deposito.id }}
+        {% if deposito.anulado %}
+          <div><strong style="color:#b02a37;">ANULADO</strong></div>
+          {% if deposito.fecha_anulacion %}
+            <small>{{ deposito.fecha_anulacion|date:"d/m/Y H:i" }}</small>
+          {% endif %}
+        {% endif %}
+      </td>
+      <td>{{ deposito.fecha|date:"d/m/Y H:i" }}</td>
+      <td>{{ deposito.cantidad_ventas }}</td>
+      <td>${{ deposito.monto_ventas|floatformat:0 }}</td>
+      <td>${{ deposito.monto_depositado|floatformat:0 }}</td>
+      <td>${{ deposito.diferencia|floatformat:0 }}</td>
+      <td>{{ deposito.registrado_por }}</td>
+      <td style="white-space:nowrap;">
+        {% if not deposito.anulado %}
+          <a class="btn btn-primary" href="{% url 'crm:deposito_editar' deposito.id %}">Editar</a>
+        {% endif %}
+        <a class="btn btn-secondary" href="{% url 'crm:deposito_historial' deposito.id %}">Historial</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>Aún no hay depósitos registrados.</p>
+{% endif %}
+{% endblock %}

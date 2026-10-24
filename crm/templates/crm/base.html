@@ -12,11 +12,6 @@
     <header>
         <h1>Gestión Comercial</h1>
         <nav class="main-nav">
-          <a href="{% url 'crm:crear_cliente' %}"
-            class="{% if request.resolver_match.url_name == 'crear_cliente' %}active{% endif %}">
-            ➕ Crear cliente
-          </a>
-
           <a href="{% url 'crm:clientes_list' %}"
             class="{% if request.resolver_match.url_name == 'clientes_list' %}active{% endif %}">
             Clientes
@@ -24,6 +19,11 @@
           <a href="{% url 'crm:ventas_list' %}"
             class="{% if request.resolver_match.url_name == 'ventas_list' %}active{% endif %}">
             💰 Ventas
+          </a>
+
+          <a href="{% url 'crm:depositos_list' %}"
+            class="{% if request.resolver_match.url_name == 'depositos_list' or request.resolver_match.url_name == 'deposito_editar' or request.resolver_match.url_name == 'deposito_historial' %}active{% endif %}">
+            💵 Depósitos
           </a>
 
           <a href="{% url 'crm:buscar_cliente_telefono' %}"
