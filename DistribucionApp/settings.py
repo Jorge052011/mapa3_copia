@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://100.71.205.69:8011",
     # ✅ TU HOST EXACTO (del navegador)
     "https://ubiquitous-telegram-r4w677p5p7j4fr5r-8000.app.github.dev",
     "http://100.71.205.69:8000", 

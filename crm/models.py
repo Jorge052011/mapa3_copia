@@ -94,6 +94,52 @@ class Venta(models.Model):
 
     observaciones = models.TextField(blank=True)
 
+    REPARTIDOR_CHOICES = [
+        ("jorge", "Jorge"),
+        ("diego", "Diego"),
+    ]
+
+    MODO_PAGO_CHOICES = [
+        ("tarjeta", "Tarjeta"),
+        ("transferencia", "Transferencia"),
+        ("efectivo", "Efectivo"),
+        ("pago_web", "Pago web"),
+        ("link_pago", "Link de pago"),
+    ]
+
+    repartidor = models.CharField(
+        "Repartidor",
+        max_length=20,
+        choices=REPARTIDOR_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Seleccione el repartidor de la venta",
+    )
+
+    modo_pago = models.CharField(
+        "Modo de pago",
+        max_length=20,
+        choices=MODO_PAGO_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Seleccione el modo de pago de la venta",
+    )
+
+    deposito_realizado = models.BooleanField(
+        "Depósito realizado",
+        default=False,
+        help_text="Indica si el depósito en efectivo ha sido realizado",
+    )
+
+    deposito = models.ForeignKey(
+        "Deposito",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ventas",
+        verbose_name="Depósito asociado",
+    )
+
     tipo_documento = models.CharField(
         max_length=20,
         choices=TipoDocumento.choices,
@@ -168,6 +214,62 @@ class Venta(models.Model):
             peso = it.producto.peso_kg or Decimal("0")
             total += it.cantidad * peso
         return total
+
+
+class Deposito(models.Model):
+    fecha = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name="Fecha del depósito",
+    )
+    monto_ventas = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Total de ventas asociadas",
+    )
+    monto_depositado = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Monto efectivamente depositado",
+    )
+    diferencia = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Diferencia del depósito",
+    )
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="depositos_ventas",
+        verbose_name="Registrado por",
+    )
+
+    anulado = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Depósito anulado",
+    )
+    fecha_anulacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de anulación",
+    )
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="depositos_anulados",
+        null=True,
+        blank=True,
+        verbose_name="Anulado por",
+    )
+
+    class Meta:
+        ordering = ["-fecha", "-id"]
+        verbose_name = "Depósito"
+        verbose_name_plural = "Depósitos"
+
+    def __str__(self):
+        return f"Depósito #{self.pk} - ${self.monto_depositado}"
 
 
 class VentaItem(models.Model):
@@ -406,3 +508,75 @@ class InventarioBolsasAjuste(models.Model):
     def save(self, *args, **kwargs):
         self.diferencia = self.stock_fisico - self.stock_sistema_before
         super().save(*args, **kwargs)
+
+
+class DepositoEdicion(models.Model):
+    """Historial de modificaciones realizadas a un depósito."""
+
+    deposito = models.ForeignKey(
+        Deposito,
+        on_delete=models.PROTECT,
+        related_name="historial",
+        verbose_name="Depósito",
+    )
+    fecha = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name="Fecha de modificación",
+    )
+    monto_ventas_anterior = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Total anterior de ventas",
+    )
+    monto_ventas_nuevo = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Total nuevo de ventas",
+    )
+    monto_depositado_anterior = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Monto depositado anterior",
+    )
+    monto_depositado_nuevo = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Monto depositado nuevo",
+    )
+    diferencia_anterior = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Diferencia anterior",
+    )
+    diferencia_nueva = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Diferencia nueva",
+    )
+    ventas_agregadas = models.TextField(
+        blank=True,
+        verbose_name="Ventas agregadas",
+    )
+    ventas_quitadas = models.TextField(
+        blank=True,
+        verbose_name="Ventas quitadas",
+    )
+    motivo = models.TextField(
+        blank=True,
+        verbose_name="Motivo de la modificación",
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="ediciones_depositos",
+        verbose_name="Modificado por",
+    )
+
+    class Meta:
+        ordering = ["-fecha", "-id"]
+        verbose_name = "Modificación de depósito"
+        verbose_name_plural = "Historial de modificaciones de depósitos"
+
+    def __str__(self):
+        return f"Edición del depósito #{self.deposito_id} - {self.fecha:%d/%m/%Y %H:%M}"

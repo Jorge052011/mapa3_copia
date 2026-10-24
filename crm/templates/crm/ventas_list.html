@@ -73,6 +73,45 @@
             </select>
         </div>
 
+        <!-- Filtro por repartidor -->
+        <div>
+            <label for="repartidor" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Repartidor:
+            </label>
+            <select id="repartidor" name="repartidor" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="" {% if not f.repartidor %}selected{% endif %}>Todos</option>
+                <option value="jorge" {% if f.repartidor == "jorge" %}selected{% endif %}>Jorge</option>
+                <option value="diego" {% if f.repartidor == "diego" %}selected{% endif %}>Diego</option>
+            </select>
+        </div>
+
+        <!-- ✅ NUEVO: Filtro por modo de pago -->
+        <div>
+            <label for="modo_pago" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Modo de pago:
+            </label>
+            <select id="modo_pago" name="modo_pago" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todos</option>
+                <option value="tarjeta" {% if f.modo_pago == "tarjeta" %}selected{% endif %}>Tarjeta</option>
+                <option value="transferencia" {% if f.modo_pago == "transferencia" %}selected{% endif %}>Transferencia</option>
+                <option value="efectivo" {% if f.modo_pago == "efectivo" %}selected{% endif %}>Efectivo</option>
+                <option value="pago_web" {% if f.modo_pago == "pago_web" %}selected{% endif %}>Pago web</option>
+                <option value="link_pago" {% if f.modo_pago == "link_pago" %}selected{% endif %}>Link de pago</option>
+            </select>
+        </div>
+
+        <!-- ✅ NUEVO: Filtro por estado del depósito -->
+        <div>
+            <label for="deposito_estado" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                Estado del depósito:
+            </label>
+            <select id="deposito_estado" name="deposito_estado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Todos</option>
+                <option value="depositado" {% if f.deposito_estado == "depositado" %}selected{% endif %}>Depositado</option>
+                <option value="pendiente" {% if f.deposito_estado == "pendiente" %}selected{% endif %}>Pendiente</option>
+            </select>
+        </div>
+
         <!-- Filtro por kilos mínimos -->
         <div>
             <label for="min_kilos" style="display: block; font-weight: 600; margin-bottom: 5px;">
@@ -140,8 +179,47 @@
 </div>
 {% endif %}
 
+<!-- Registro de depósito múltiple: trabaja con las ventas visibles de esta página -->
+<div style="margin: 15px 0; padding: 16px; border: 1px solid #b8cde0; border-radius: 8px; background: #f5f9fc;">
+    <h3 style="margin-top: 0;">Registrar depósito en efectivo</h3>
+    <p>Selecciona las ventas pendientes de esta página. El servidor verificará nuevamente que ninguna esté depositada.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:end;">
+        <div>
+            <label for="monto_depositado"><strong>Monto efectivamente depositado ($)</strong></label><br>
+            <input id="monto_depositado" name="monto_depositado" form="deposito-form"
+                   type="number" min="1" step="1" required
+                   style="padding:8px; width:220px; max-width:100%;">
+        </div>
+        <div>
+            <strong>Ventas seleccionadas:</strong>
+            <div><span id="deposito-cantidad">0</span></div>
+        </div>
+        <div>
+            <strong>Total de ventas:</strong>
+            <div id="deposito-total">$0</div>
+        </div>
+        <div>
+            <strong>Diferencia (depósito − ventas):</strong>
+            <div id="deposito-diferencia">Ingresa el depósito</div>
+        </div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
+        <button type="button" id="deposito-sugerir"
+                style="padding:8px 12px; cursor:pointer;">Sugerir combinación</button>
+        <button type="submit" form="deposito-form"
+                style="padding:9px 15px; background:#176b3a; color:white; border:0; border-radius:4px; cursor:pointer;">
+            Registrar depósito seleccionado
+        </button>
+    </div>
+    <p id="deposito-sugerencia" aria-live="polite" style="margin-bottom:0;"></p>
+</div>
+
+<form id="deposito-form" method="post" action="{% url 'crm:deposito_registrar' %}">
+{% csrf_token %}
+
 <!-- Tabla de ventas -->
-<table style="width: 100%; border-collapse: collapse;">
+<div style="overflow-x: auto; margin-bottom: 20px;">
+<table style="width: 100%; border-collapse: collapse; min-width: 600px;">
     <thead>
         <tr style="background-color: #f0f0f0;">
             <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
@@ -150,6 +228,9 @@
             <th style="padding: 10px; border: 1px solid #ddd;">Tipo Doc.</th>
             <th style="padding: 10px; border: 1px solid #ddd;">N° Doc.</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Canal</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Repartidor</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Modo pago</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Incluir en depósito</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Monto</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Acciones</th>
@@ -169,6 +250,34 @@
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_tipo_documento_display }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.numero_documento|default:"-" }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.get_canal_display }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                {% if venta.repartidor %}
+                    {{ venta.get_repartidor_display }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+                {% if venta.modo_pago %}
+                    {{ venta.get_modo_pago_display }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                {% if venta.modo_pago == "efectivo" %}
+                    {% if venta.deposito_realizado or venta.deposito_id %}
+                        <span title="Ya asociada a un depósito">Depositada</span>
+                    {% else %}
+                        <input type="checkbox" class="venta-check" name="ventas_ids"
+                               value="{{ venta.id }}" data-monto="{{ venta.monto_total|default:0 }}"
+                               id="venta_deposito_{{ venta.id }}" aria-label="Incluir venta {{ venta.id }}"
+                               style="transform: scale(1.2);">
+                    {% endif %}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
             <td style="padding: 8px; border: 1px solid #ddd;">{{ venta.kilos_total|floatformat:0 }} kg</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${{ venta.monto_total|floatformat:0 }}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">
@@ -184,7 +293,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="9" style="padding: 20px; text-align: center; color: #999;">
+            <td colspan="11" style="padding: 20px; text-align: center; color: #999;">
                 {% if f.buscar_cliente %}
                     No se encontraron ventas para el cliente "{{ f.buscar_cliente }}"
                 {% else %}
@@ -195,6 +304,108 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
+</form>
+
+<script>
+(function () {
+    const checks = Array.from(document.querySelectorAll(".venta-check"));
+    const montoInput = document.getElementById("monto_depositado");
+    const cantidad = document.getElementById("deposito-cantidad");
+    const totalEl = document.getElementById("deposito-total");
+    const diferenciaEl = document.getElementById("deposito-diferencia");
+    const sugerenciaEl = document.getElementById("deposito-sugerencia");
+    const parseMonto = valor => Number(String(valor || "0").replace(",", "."));
+    const formato = n => new Intl.NumberFormat("es-CL", {
+        style: "currency", currency: "CLP", maximumFractionDigits: 0
+    }).format(n);
+
+    function seleccionadas() {
+        return checks.filter(c => c.checked);
+    }
+    function sumaSeleccionada() {
+        return seleccionadas().reduce((s, c) => s + Math.round(parseMonto(c.dataset.monto)), 0);
+    }
+    function actualizar() {
+        const sel = seleccionadas();
+        const total = sumaSeleccionada();
+        cantidad.textContent = sel.length;
+        totalEl.textContent = formato(total);
+        const raw = montoInput.value.trim();
+        if (raw !== "" && Number.isFinite(Number(raw))) {
+            diferenciaEl.textContent = formato(Math.round(Number(raw)) - total);
+        } else {
+            diferenciaEl.textContent = "Ingresa el depósito";
+        }
+    }
+    checks.forEach(c => c.addEventListener("change", actualizar));
+    montoInput.addEventListener("input", actualizar);
+
+    document.getElementById("deposito-sugerir").addEventListener("click", function () {
+        const objetivo = Math.round(Number(montoInput.value));
+        if (!Number.isFinite(objetivo) || objetivo <= 0) {
+            sugerenciaEl.textContent = "Ingresa primero el monto que quieres depositar.";
+            return;
+        }
+        if (!checks.length) {
+            sugerenciaEl.textContent = "No hay ventas pendientes en efectivo en esta página.";
+            return;
+        }
+
+        // Búsqueda de combinación con límite de estados para mantener la página ágil.
+        const candidatas = checks.map(c => ({
+            check: c, monto: Math.round(parseMonto(c.dataset.monto))
+        })).filter(x => x.monto > 0 && x.monto <= objetivo);
+
+        let estados = new Map([[0, []]]);
+        const maxEstados = 100000;
+        for (const item of candidatas) {
+            const nuevos = new Map(estados);
+            for (const [suma, lista] of estados) {
+                const nuevaSuma = suma + item.monto;
+                if (nuevaSuma <= objetivo && !nuevos.has(nuevaSuma)) {
+                    nuevos.set(nuevaSuma, lista.concat(item));
+                }
+                if (nuevos.size >= maxEstados) break;
+            }
+            estados = nuevos;
+            if (estados.has(objetivo) || estados.size >= maxEstados) break;
+        }
+
+        let mejorSuma = 0;
+        for (const suma of estados.keys()) {
+            if (Math.abs(objetivo - suma) < Math.abs(objetivo - mejorSuma)) mejorSuma = suma;
+        }
+        const lista = estados.get(mejorSuma) || [];
+        checks.forEach(c => { c.checked = false; });
+        lista.forEach(x => { x.check.checked = true; });
+        actualizar();
+        sugerenciaEl.textContent = lista.length
+            ? "Combinación sugerida: " + lista.length + " venta(s), total " + formato(mejorSuma) +
+              ". Diferencia estimada: " + formato(objetivo - mejorSuma) + ". Revisa la selección antes de registrar."
+            : "No se encontró una combinación de ventas con monto positivo que no supere el objetivo.";
+    });
+
+    document.getElementById("deposito-form").addEventListener("submit", function (e) {
+        if (!seleccionadas().length) {
+            e.preventDefault();
+            alert("Selecciona al menos una venta pendiente en efectivo.");
+            return;
+        }
+        if (!montoInput.value || Number(montoInput.value) <= 0) {
+            e.preventDefault();
+            alert("Ingresa el monto efectivamente depositado.");
+            montoInput.focus();
+            return;
+        }
+        if (!confirm("¿Confirmas el depósito para las " + seleccionadas().length +
+                     " ventas seleccionadas? Esta acción no se puede deshacer desde la lista.")) {
+            e.preventDefault();
+        }
+    });
+    actualizar();
+})();
+</script>
 
 {% comment %}
 {% if ventas %}

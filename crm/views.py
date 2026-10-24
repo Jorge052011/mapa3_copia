@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional, InventarioBolsasAjuste
+from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional, InventarioBolsasAjuste, DepositoEdicion, Deposito
 from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
 from .forms import ClienteForm, VentaForm, VentaItemForm
 
@@ -189,8 +189,14 @@ def ventas_list(request):
     min_kilos = request.GET.get("min_kilos", "").strip()
     max_kilos = request.GET.get("max_kilos", "").strip()
     buscar_cliente = request.GET.get("buscar_cliente", "").strip()
+    modo_pago = request.GET.get("modo_pago", "").strip()
+    deposito_estado = request.GET.get("deposito_estado", "").strip()
+    repartidor = request.GET.get("repartidor", "").strip()
 
     qs = Venta.objects.select_related("cliente").all()
+
+    if repartidor in ("jorge", "diego"):
+        qs = qs.filter(repartidor=repartidor)
 
     if buscar_cliente:
         qs = qs.filter(cliente__nombre__icontains=buscar_cliente)
@@ -212,6 +218,19 @@ def ventas_list(request):
             qs = qs.filter(kilos_total__lte=Decimal(max_kilos))
         except Exception:
             pass
+
+    # ✅ NUEVO: Filtro por modo de pago
+    if modo_pago:
+        qs = qs.filter(modo_pago=modo_pago)
+
+    # ✅ NUEVO: Filtro por estado del depósito
+    if deposito_estado:
+        if deposito_estado == "depositado":
+            # Solo ventas en efectivo con depósito realizado
+            qs = qs.filter(modo_pago="efectivo", deposito_realizado=True)
+        elif deposito_estado == "pendiente":
+            # Solo ventas en efectivo con depósito pendiente
+            qs = qs.filter(modo_pago="efectivo", deposito_realizado=False)
 
     if orden_id == "asc":
         qs = qs.order_by("id")
@@ -237,6 +256,9 @@ def ventas_list(request):
             "min_kilos": min_kilos,
             "max_kilos": max_kilos,
             "buscar_cliente": buscar_cliente,
+            "modo_pago": modo_pago,
+            "deposito_estado": deposito_estado,
+            "repartidor": repartidor,
         },
     }
     return render(request, "crm/ventas_list.html", context)
@@ -1261,3 +1283,364 @@ def exportar_ventas_excel(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
     return response
+
+
+@login_required
+@require_POST
+def deposito_registrar(request):
+    """Registra un depósito y asocia ventas en efectivo pendientes."""
+    ids = request.POST.getlist("ventas_ids")
+    monto_texto = request.POST.get("monto_depositado", "").strip()
+
+    try:
+        monto_depositado = Decimal(monto_texto)
+        if not monto_depositado.is_finite() or monto_depositado <= 0:
+            raise ValueError
+        monto_depositado = monto_depositado.quantize(Decimal("0.01"))
+    except Exception:
+        messages.error(request, "Ingresa un monto depositado válido y mayor que cero.")
+        return redirect("crm:ventas_list")
+
+    ids_limpios = []
+    try:
+        ids_limpios = list(dict.fromkeys(int(x) for x in ids))
+    except (TypeError, ValueError):
+        messages.error(request, "La selección de ventas no es válida.")
+        return redirect("crm:ventas_list")
+
+    if not ids_limpios:
+        messages.error(request, "Selecciona al menos una venta pendiente en efectivo.")
+        return redirect("crm:ventas_list")
+
+    try:
+        with transaction.atomic():
+            ventas = list(
+                Venta.objects.select_for_update()
+                .filter(id__in=ids_limpios)
+                .order_by("id")
+            )
+
+            if len(ventas) != len(ids_limpios):
+                raise ValueError("Una o más ventas seleccionadas ya no existen.")
+
+            for venta in ventas:
+                if venta.modo_pago != "efectivo":
+                    raise ValueError(f"La venta #{venta.id} no está pagada en efectivo.")
+                if venta.deposito_realizado or venta.deposito_id is not None:
+                    raise ValueError(f"La venta #{venta.id} ya está asociada a un depósito.")
+
+            total_ventas = sum(
+                (venta.monto_total or Decimal("0.00") for venta in ventas),
+                Decimal("0.00"),
+            ).quantize(Decimal("0.01"))
+
+            deposito = Deposito.objects.create(
+                monto_ventas=total_ventas,
+                monto_depositado=monto_depositado,
+                diferencia=(monto_depositado - total_ventas).quantize(Decimal("0.01")),
+                registrado_por=request.user,
+            )
+
+            for venta in ventas:
+                venta.deposito = deposito
+                venta.deposito_realizado = True
+                venta.save(update_fields=["deposito", "deposito_realizado"])
+
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("crm:ventas_list")
+
+    messages.success(
+        request,
+        f"Depósito #{deposito.id} registrado. "
+        f"Ventas: ${total_ventas:,.0f}; depósito: ${monto_depositado:,.0f}; "
+        f"diferencia: ${deposito.diferencia:,.0f}."
+    )
+    return redirect("crm:ventas_list")
+
+
+@login_required
+@require_POST
+def venta_deposito_toggle(request, venta_id):
+    """Bloquea el registro individual: ahora se usan depósitos múltiples."""
+    messages.error(
+        request,
+        "El registro individual fue reemplazado por depósitos múltiples. "
+        "Selecciona las ventas pendientes y registra el depósito desde la lista."
+    )
+    return redirect("crm:ventas_list")
+
+
+@login_required
+def depositos_list(request):
+    """Lista los depósitos registrados."""
+    from django.db.models import Count
+
+    depositos = (
+        Deposito.objects
+        .select_related("registrado_por")
+        .annotate(cantidad_ventas=Count("ventas"))
+        .order_by("-fecha", "-id")
+    )
+    return render(
+        request,
+        "crm/depositos_list.html",
+        {"depositos": depositos},
+    )
+
+
+@login_required
+def deposito_editar(request, deposito_id):
+    """Permite abrir y modificar un depósito con historial de cambios."""
+    deposito = get_object_or_404(
+        Deposito.objects.select_related("registrado_por"),
+        pk=deposito_id,
+    )
+
+    if deposito.anulado:
+        messages.error(request, f"El depósito #{deposito.id} está anulado y no se puede editar.")
+        return redirect("crm:depositos_list")
+
+    if request.method == "GET":
+        ventas_asociadas = list(
+            Venta.objects.filter(deposito_id=deposito.id)
+            .select_related("cliente")
+            .order_by("id")
+        )
+        ventas_disponibles = list(
+            Venta.objects.filter(
+                modo_pago="efectivo",
+                deposito__isnull=True,
+                deposito_realizado=False,
+            )
+            .select_related("cliente")
+            .order_by("-fecha", "-id")
+        )
+        return render(
+            request,
+            "crm/deposito_editar.html",
+            {
+                "deposito": deposito,
+                "ventas_asociadas": ventas_asociadas,
+                "ventas_disponibles": ventas_disponibles,
+            },
+        )
+
+    if request.method != "POST":
+        return redirect("crm:depositos_list")
+
+    monto_texto = request.POST.get("monto_depositado", "").strip()
+    motivo = request.POST.get("motivo", "").strip()
+
+    # Si el campo queda vacío, conservar el monto depositado actual.
+    if monto_texto:
+        try:
+            monto_depositado = Decimal(monto_texto)
+            if not monto_depositado.is_finite() or monto_depositado <= 0:
+                raise ValueError
+            monto_depositado = monto_depositado.quantize(Decimal("0.01"))
+        except Exception:
+            messages.error(request, "Ingresa un monto depositado válido y mayor que cero, o déjalo vacío para conservarlo.")
+            return redirect("crm:deposito_editar", deposito_id=deposito_id)
+    else:
+        monto_depositado = None
+
+    try:
+        ids = list(dict.fromkeys(int(x) for x in request.POST.getlist("ventas_ids")))
+        if any(x <= 0 for x in ids):
+            raise ValueError
+    except (TypeError, ValueError):
+        messages.error(request, "La selección de ventas no es válida.")
+        return redirect("crm:deposito_editar", deposito_id=deposito_id)
+
+    if not ids:
+        messages.error(request, "El depósito debe tener al menos una venta.")
+        return redirect("crm:deposito_editar", deposito_id=deposito_id)
+
+    try:
+        with transaction.atomic():
+            deposito = Deposito.objects.select_for_update().get(pk=deposito_id)
+
+            if monto_depositado is None:
+                monto_depositado = deposito.monto_depositado
+
+            ventas_actuales = list(
+                Venta.objects.select_for_update()
+                .filter(deposito_id=deposito.id)
+                .order_by("id")
+            )
+            ventas_seleccionadas = list(
+                Venta.objects.select_for_update()
+                .filter(id__in=ids)
+                .order_by("id")
+            )
+
+            if len(ventas_seleccionadas) != len(ids):
+                raise ValueError("Una o más ventas seleccionadas ya no existen.")
+
+            actuales_por_id = {v.id: v for v in ventas_actuales}
+            seleccionadas_por_id = {v.id: v for v in ventas_seleccionadas}
+
+            for venta in ventas_seleccionadas:
+                if venta.modo_pago != "efectivo":
+                    raise ValueError(f"La venta #{venta.id} no está pagada en efectivo.")
+                if venta.deposito_id not in (None, deposito.id):
+                    raise ValueError(
+                        f"La venta #{venta.id} ya pertenece a otro depósito."
+                    )
+                if venta.deposito_id is None and venta.deposito_realizado:
+                    raise ValueError(
+                        f"La venta #{venta.id} tiene un estado de depósito inconsistente."
+                    )
+
+            ids_actuales = set(actuales_por_id)
+            ids_nuevos = set(seleccionadas_por_id)
+            ids_agregados = sorted(ids_nuevos - ids_actuales)
+            ids_quitados = sorted(ids_actuales - ids_nuevos)
+
+            total_ventas = sum(
+                (
+                    v.monto_total or Decimal("0.00")
+                    for v in ventas_seleccionadas
+                ),
+                Decimal("0.00"),
+            ).quantize(Decimal("0.01"))
+            diferencia = (monto_depositado - total_ventas).quantize(
+                Decimal("0.01")
+            )
+
+            monto_ventas_anterior = deposito.monto_ventas
+            monto_depositado_anterior = deposito.monto_depositado
+            diferencia_anterior = deposito.diferencia
+
+            for venta_id in ids_quitados:
+                venta = actuales_por_id[venta_id]
+                venta.deposito = None
+                venta.deposito_realizado = False
+                venta.save(update_fields=["deposito", "deposito_realizado"])
+
+            for venta_id in ids_agregados:
+                venta = seleccionadas_por_id[venta_id]
+                venta.deposito = deposito
+                venta.deposito_realizado = True
+                venta.save(update_fields=["deposito", "deposito_realizado"])
+
+            deposito.monto_ventas = total_ventas
+            deposito.monto_depositado = monto_depositado
+            deposito.diferencia = diferencia
+            deposito.save(
+                update_fields=["monto_ventas", "monto_depositado", "diferencia"]
+            )
+
+            hubo_cambios = (
+                monto_ventas_anterior != total_ventas
+                or monto_depositado_anterior != monto_depositado
+                or diferencia_anterior != diferencia
+                or bool(ids_agregados)
+                or bool(ids_quitados)
+                or bool(motivo)
+            )
+
+            if hubo_cambios:
+                DepositoEdicion.objects.create(
+                    deposito=deposito,
+                    monto_ventas_anterior=monto_ventas_anterior,
+                    monto_ventas_nuevo=total_ventas,
+                    monto_depositado_anterior=monto_depositado_anterior,
+                    monto_depositado_nuevo=monto_depositado,
+                    diferencia_anterior=diferencia_anterior,
+                    diferencia_nueva=diferencia,
+                    ventas_agregadas=", ".join(map(str, ids_agregados)),
+                    ventas_quitadas=", ".join(map(str, ids_quitados)),
+                    motivo=motivo,
+                    modificado_por=request.user,
+                )
+
+    except Deposito.DoesNotExist:
+        messages.error(request, "El depósito solicitado no existe.")
+        return redirect("crm:depositos_list")
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("crm:deposito_editar", deposito_id=deposito_id)
+
+    messages.success(request, f"Depósito #{deposito.id} actualizado correctamente.")
+    return redirect("crm:depositos_list")
+
+
+@login_required
+@require_POST
+def deposito_anular(request, deposito_id):
+    """Anula un depósito, libera sus ventas y conserva el historial."""
+    try:
+        with transaction.atomic():
+            deposito = get_object_or_404(
+                Deposito.objects.select_for_update(),
+                pk=deposito_id,
+            )
+
+            if deposito.anulado:
+                messages.warning(request, f"El depósito #{deposito.id} ya estaba anulado.")
+                return redirect("crm:depositos_list")
+
+            ventas = list(
+                Venta.objects.select_for_update()
+                .filter(deposito_id=deposito.id)
+                .order_by("id")
+            )
+
+            ids_ventas = [venta.id for venta in ventas]
+
+            # Liberar todas las ventas del depósito.
+            for venta in ventas:
+                venta.deposito = None
+                venta.deposito_realizado = False
+                venta.save(update_fields=["deposito", "deposito_realizado"])
+
+            # Registrar la anulación sin borrar el depósito.
+            deposito.anulado = True
+            deposito.fecha_anulacion = timezone.now()
+            deposito.anulado_por = request.user
+            deposito.save(update_fields=[
+                "anulado", "fecha_anulacion", "anulado_por"
+            ])
+
+            # Registrar el movimiento en el historial existente.
+            DepositoEdicion.objects.create(
+                deposito=deposito,
+                monto_ventas_anterior=deposito.monto_ventas,
+                monto_ventas_nuevo=deposito.monto_ventas,
+                monto_depositado_anterior=deposito.monto_depositado,
+                monto_depositado_nuevo=deposito.monto_depositado,
+                diferencia_anterior=deposito.diferencia,
+                diferencia_nueva=deposito.diferencia,
+                ventas_agregadas="",
+                ventas_quitadas=", ".join(map(str, ids_ventas)),
+                motivo="Depósito anulado. Ventas liberadas para volver a asociarlas.",
+                modificado_por=request.user,
+            )
+
+    except Exception as exc:
+        from django.http import Http404
+        if isinstance(exc, Http404):
+            messages.error(request, "El depósito solicitado no existe.")
+            return redirect("crm:depositos_list")
+        raise
+
+    messages.success(
+        request,
+        f"Depósito #{deposito.id} anulado. "
+        f"Se liberaron {len(ids_ventas)} ventas.",
+    )
+    return redirect("crm:depositos_list")
+
+
+@login_required
+def deposito_historial(request, deposito_id):
+    """Muestra el historial de cambios de un depósito."""
+    deposito = get_object_or_404(Deposito, pk=deposito_id)
+    historial = deposito.historial.select_related("modificado_por").all()
+    return render(
+        request,
+        "crm/deposito_historial.html",
+        {"deposito": deposito, "historial": historial},
+    )

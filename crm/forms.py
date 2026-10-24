@@ -34,11 +34,14 @@ class VentaForm(forms.ModelForm):
             "canal",
             "kilos_total",      # ✅ kilos (antes era total)
             "observaciones",
+            "repartidor",       # ✅ Nuevo campo: Repartidor
+            "modo_pago",        # ✅ Nuevo campo: Modo de pago
         ]
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # ✅ Orden descendente por ID (clientes más recientes primero)
+
+        # Orden descendente por ID (clientes más recientes primero)
         self.fields['cliente'].queryset = Cliente.objects.all().order_by('-id')
 
     def clean(self):

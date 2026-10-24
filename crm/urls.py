@@ -41,4 +41,16 @@ urlpatterns = [
     # Exportar Excel de ventas
     path("ventas/exportar-excel/", views.exportar_ventas_excel, name="exportar_ventas_excel"),
 
+    # Listado, edición e historial de depósitos
+    path("depositos/", views.depositos_list, name="depositos_list"),
+    path("depositos/<int:deposito_id>/editar/", views.deposito_editar, name="deposito_editar"),
+    path("depositos/<int:deposito_id>/anular/", views.deposito_anular, name="deposito_anular"),
+    path("depositos/<int:deposito_id>/historial/", views.deposito_historial, name="deposito_historial"),
+
+    # Registro de depósitos múltiples
+    path("depositos/registrar/", views.deposito_registrar, name="deposito_registrar"),
+
+    # Ruta antigua conservada por compatibilidad
+    path("ventas/<int:venta_id>/deposito/", views.venta_deposito_toggle, name="venta_deposito_toggle"),
+
 ]

@@ -109,6 +109,16 @@
 </p>
 
 <p>
+  <strong>Repartidor:</strong>
+  {{ venta.repartidor }}{% if not venta.repartidor %}—{% endif %}
+</p>
+
+<p>
+  <strong>Modo de pago:</strong>
+  {{ venta.get_modo_pago_display }}{% if not venta.get_modo_pago_display %}—{% endif %}
+</p>
+
+<p>
   <a class="btn btn-secondary" href="{% url 'crm:ventas_list' %}">Volver a ventas</a>
   <a class="btn btn-edit" href="{% url 'crm:venta_editar' venta.id %}">Editar venta</a>
 </p>
