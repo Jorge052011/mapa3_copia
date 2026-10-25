@@ -54,4 +54,56 @@
 {% else %}
 <p>Aún no hay depósitos registrados.</p>
 {% endif %}
+
+<!-- Tabla: Diferencia extra depositada por usuario registrador -->
+{% if datos_diferencia %}
+<div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+  <h3 style="margin-top: 0;">Diferencia Extra Depositada por Usuario</h3>
+  <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+    <thead>
+      <tr style="background-color: #e9ecef;">
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Usuario</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: center;"># Depósitos</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: center;"># Ventas Únicas</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Total Diferencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for usuario in datos_diferencia %}
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: normal;">
+          {{ usuario.registrado_por__username }}{% if not usuario.num_depositos %} (sin depósitos con ventas){% endif %}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          {{ usuario.num_depositos }}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          {{ usuario.num_ventas }}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">
+          {% if usuario.suma_diferencia is none %}
+            —
+          {% else %}
+            ${{ usuario.suma_diferencia|floatformat:0 }}
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" style="padding: 20px; text-align: center; color: #666;">
+          No hay depósitos con ventas asociadas para calcular diferencias.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p style="margin-top: 10px; font-size: 12px; color: #666;">
+    <strong>Notas:</strong> La diferencia = monto depositado − monto ventas asociadas. <br>
+    Se conserva el signo original (positivo, negativo o cero). <br>
+    Cada depósito se cuenta una sola vez a pesar de tener múltiples ventas asociadas. <br>
+    Los usuarios se identifican por su cuenta Django (username), no por el campo repartidor de las ventas.
+  </p>
+</div>
+{% endif %}
 {% endblock %}

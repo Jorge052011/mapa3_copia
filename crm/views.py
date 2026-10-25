@@ -1373,8 +1373,7 @@ def venta_deposito_toggle(request, venta_id):
 
 @login_required
 def depositos_list(request):
-    """Lista los depósitos registrados."""
-    from django.db.models import Count
+    """Lista los depósitos y resume diferencias por usuario registrador."""
 
     depositos = (
         Deposito.objects
@@ -1382,10 +1381,55 @@ def depositos_list(request):
         .annotate(cantidad_ventas=Count("ventas"))
         .order_by("-fecha", "-id")
     )
+
+    depositos_con_ventas = Deposito.objects.filter(
+        pk__in=Deposito.objects.filter(
+            ventas__isnull=False
+        ).values("pk")
+    )
+
+    resumen_depositos = {
+        fila["registrado_por_id"]: fila
+        for fila in depositos_con_ventas.values(
+            "registrado_por_id",
+            "registrado_por__username",
+            "registrado_por__first_name",
+            "registrado_por__last_name",
+        ).annotate(
+            num_depositos=Count("id"),
+            suma_diferencia=Sum("diferencia"),
+        )
+    }
+
+    resumen_ventas = {
+        fila["deposito__registrado_por_id"]: fila["num_ventas"]
+        for fila in Venta.objects.filter(
+            deposito__in=depositos_con_ventas
+        ).values(
+            "deposito__registrado_por_id"
+        ).annotate(
+            num_ventas=Count("id")
+        )
+    }
+
+    datos_diferencia = []
+    for usuario_id, fila in resumen_depositos.items():
+        datos_diferencia.append({
+            **fila,
+            "num_ventas": resumen_ventas.get(usuario_id, 0),
+        })
+
+    datos_diferencia.sort(
+        key=lambda fila: fila["registrado_por__username"] or ""
+    )
+
     return render(
         request,
         "crm/depositos_list.html",
-        {"depositos": depositos},
+        {
+            "depositos": depositos,
+            "datos_diferencia": datos_diferencia,
+        },
     )
 
 
