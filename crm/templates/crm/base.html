@@ -26,6 +26,11 @@
             💵 Depósitos
           </a>
 
+          <a href="{% url 'crm:repartidor_pendiente' %}"
+            class="{% if request.resolver_match.url_name == 'repartidor_pendiente' %}active{% endif %}">
+            💰 Efectivo pendiente
+          </a>
+
           <a href="{% url 'crm:buscar_cliente_telefono' %}"
              class="{% if request.resolver_match.url_name == 'buscar_cliente_telefono' %}active{% endif %}">
              🔎 Buscar teléfono

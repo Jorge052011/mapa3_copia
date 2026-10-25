@@ -1,0 +1,62 @@
+{% extends 'crm/base.html' %}
+{% block content %}
+<h2>Efectivo Pendiente por Repartidor</h2>
+
+<table style="width: 100%; border-collapse: collapse; min-width: 600px; margin-top: 20px;">
+    <thead>
+        <tr style="background-color: #f0f0f0;">
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Repartidor</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Ventas Pendientes</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Total Efectivo Pendiente</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for nombre, stats in datos.items %}
+        {% if nombre != "TOTAL_GENERAL" %}
+        <tr>
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: normal;">
+                {{ nombre }}
+            </td>
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                {{ stats.ventas }}
+            </td>
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">
+                ${{ stats.monto|floatformat:0 }}
+            </td>
+        </tr>
+        {% endif %}
+        {% empty %}
+        <tr>
+            <td colspan="3" style="padding: 20px; text-align: center; color: #999;">
+                No hay ventas en efectivo pendientes de depósito.
+            </td>
+        </tr>
+        {% endfor %}
+
+        <!-- Fila de total general: siempre al final del tbody -->
+        {% if "TOTAL_GENERAL" in datos %}
+        <tr style="background-color: #e9ecef; font-weight: bold;">
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">TOTAL GENERAL</td>
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                {{ datos.TOTAL_GENERAL.ventas }}
+            </td>
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">
+                ${{ datos.TOTAL_GENERAL.monto|floatformat:0 }}
+            </td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+<p style="margin-top: 20px; font-size: 13px;">
+    <a href="{% url 'crm:ventas_list' %}?modo_pago=efectivo&deposito_estado=pendiente"
+       style="background-color: #17a2b8; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 13px;">
+        Ver detalle de ventas pendientes
+    </a>
+</p>
+
+<p style="font-size: 12px; color: #666; margin-top: 10px;">
+    ⚠ Filtro aplicado: modo_pago='efectivo' AND deposito_realizado=False AND deposito_id IS NULL.<br>
+    Incluye fila "Sin asignar" para ventas sin repartidor. Los totales se calculan directamente de las ventas filtradas, sin restar montos históricos de depósitos.
+</p>
+{% endblock %}

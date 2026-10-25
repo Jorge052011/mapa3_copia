@@ -50,7 +50,9 @@ urlpatterns = [
     # Registro de depósitos múltiples
     path("depositos/registrar/", views.deposito_registrar, name="deposito_registrar"),
 
-    # Ruta antigua conservada por compatibilidad
+# Ruta antigua conservada por compatibilidad
     path("ventas/<int:venta_id>/deposito/", views.venta_deposito_toggle, name="venta_deposito_toggle"),
 
+    # Efectivo pendiente por repartidor
+    path("repartidor/pendiente/", views.repartidor_pendiente, name="repartidor_pendiente"),
 ]

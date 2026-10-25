@@ -1644,3 +1644,84 @@ def deposito_historial(request, deposito_id):
         "crm/deposito_historial.html",
         {"deposito": deposito, "historial": historial},
     )
+
+
+@login_required
+def repartidor_pendiente(request):
+    """Tabla de efectivo pendiente de depósito por repartidor.
+
+    Filtra ventas en efectivo que no han sido depositadas:
+    - modo_pago = 'efectivo'
+    - deposito_realizado = False
+    - deposito_id IS NULL (nunca asociada a un depósito)
+
+    Agrupa por Jorge, Diego, Sin asignar y total general.
+    """
+    # Base: efectivo + pendiente de depósito (sin depósito asociado)
+    datos = (
+        Venta.objects
+        .filter(
+            modo_pago="efectivo",
+            deposito_realizado=False,
+            deposito_id__isnull=True,
+        )
+        .values("repartidor")
+        .annotate(
+            ventas_pendientes=Count("id"),
+            total_pendiente=Sum("monto_total"),
+        )
+        .order_by("repartidor")
+    )
+
+    # Mapeo de códigos a nombres visibles
+    nombre_repartidor = {
+        "jorge": "Jorge",
+        "diego": "Diego",
+    }
+
+    resultado = {}
+    total_ventas_global = 0
+    total_monto_global = Decimal("0")
+
+    # Procesar grupos traídos por el query
+    for item in datos:
+        codigo = item["repartidor"] or "sin_asignar"
+        nombre = nombre_repartidor.get(codigo, codigo.capitalize() if codigo else "Sin asignar")
+        monto = item["total_pendiente"] or Decimal("0")
+
+        resultado[nombre] = {
+            "ventas": item["ventas_pendientes"] or 0,
+            "monto": monto.quantize(Decimal("0.01")),
+        }
+        total_ventas_global += resultado[nombre]["ventas"]
+        total_monto_global += resultado[nombre]["monto"]
+
+    # Asegurar que Jorge y Diego estén presentes aunque no tengan ventas
+    for codigo, nombre in nombre_repartidor.items():
+        if nombre not in resultado:
+            resultado[nombre] = {"ventas": 0, "monto": Decimal("0")}
+
+    # Categoría "Sin asignar" si hay ventas sin repartidor
+    sin_asignar_data = datos.filter(repartidor__isnull=True).aggregate(
+        ventas=Count("id"), total=Sum("monto_total")
+    )
+    # Solo agregamos "Sin asignar" si hay ventas en esa categoría
+    # (evitamos duplicar si ya vino del query con codigo "sin_asignar")
+    ya_tiene_sin_asignar = any(
+        n == "Sin asignar" for n in resultado.keys()
+    )
+    if sin_asignar_data["ventas"] > 0 and not ya_tiene_sin_asignar:
+        resultado["Sin asignar"] = {
+            "ventas": sin_asignar_data["ventas"],
+            "monto": (sin_asignar_data["total"] or Decimal("0")).quantize(Decimal("0.01")),
+        }
+        total_ventas_global += resultado["Sin asignar"]["ventas"]
+        total_monto_global += resultado["Sin asignar"]["monto"]
+
+    # Total general (siempre la última entrada)
+    resultado["TOTAL_GENERAL"] = {
+        "ventas": total_ventas_global,
+        "monto": total_monto_global.quantize(Decimal("0.01")),
+    }
+
+    return render(request, "crm/repartidor_pendiente.html", {"datos": resultado})
