@@ -1,0 +1,85 @@
+{% extends "crm/base.html" %}
+{% block title %}Conciliación de inventario{% endblock %}
+
+{% block content %}
+<h2>Conciliación bodega / contenedores</h2>
+<p class="muted">
+  Los dos controles son independientes. La columna “diferencia” no se corrige
+  automáticamente: puede incluir ingresos históricos, ventas sin asignar y
+  ajustes generales de bodega.
+</p>
+
+<p>
+  <a class="btn btn-secondary" href="{% url 'crm:contenedores_list' %}">Ver contenedores</a>
+  <a class="btn btn-secondary" href="{% url 'crm:consumo_bolsas' %}">Inventario general</a>
+</p>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo de bolsa</th>
+          <th>Stock general</th>
+          <th>Recibido operativo</th>
+          <th>Asignado</th>
+          <th>Devuelto / revertido</th>
+          <th>Saldo contenedores</th>
+          <th>Diferencia no atribuida</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+          <tr>
+            <td>{{ fila.etiqueta }}</td>
+            <td><strong>{{ fila.stock_general }}</strong></td>
+            <td>{{ fila.recibido }}</td>
+            <td>{{ fila.asignado }}</td>
+            <td>{{ fila.devuelto }}</td>
+            <td><strong>{{ fila.saldo_contenedores }}</strong></td>
+            <td>{{ fila.diferencia }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Ventas con trazabilidad pendiente</h3>
+  {% if pendientes %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Venta</th>
+            <th>Fecha</th>
+            <th>Producto</th>
+            <th>Pendiente por tipo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in pendientes %}
+            <tr>
+              <td>#{{ fila.item.venta_id }}</td>
+              <td>{{ fila.item.venta.fecha|date:"d/m/Y" }}</td>
+              <td>{{ fila.item.producto.nombre }}</td>
+              <td>
+                {% for tipo, cantidad in fila.pendiente.items %}
+                  {{ tipo }}: {{ cantidad }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+              <td>
+                <a class="btn btn-secondary" href="{% url 'crm:venta_detalle' fila.item.venta_id %}">Asignar</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No hay ventas pendientes de trazabilidad desde el inicio del control.</p>
+  {% endif %}
+</div>
+{% endblock %}

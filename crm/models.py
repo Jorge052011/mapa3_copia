@@ -6,6 +6,7 @@ from django.db import models, transaction
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 
 from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
 
@@ -148,6 +149,21 @@ class Venta(models.Model):
     )
     numero_documento = models.CharField(max_length=30, blank=True, db_index=True)
 
+    venta_origen = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="notas_credito",
+        verbose_name="Venta de origen",
+        help_text="Venta original cuando este documento es una nota de crédito.",
+    )
+    devolucion_fisica = models.BooleanField(
+        default=False,
+        verbose_name="Devolución física",
+        help_text="Solo una nota de crédito con devolución física restituye bolsas al inventario.",
+    )
+
     # ✅ NUEVO: Meta con índices
     class Meta:
         verbose_name = "Venta"
@@ -275,6 +291,15 @@ class Deposito(models.Model):
 class VentaItem(models.Model):
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="items")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    item_origen = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="items_devolucion",
+        verbose_name="Ítem de origen",
+        help_text="Ítem original cuando esta línea pertenece a una devolución física.",
+    )
     cantidad = models.PositiveIntegerField(default=1)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
 
@@ -405,6 +430,244 @@ class Importacion(models.Model):
             except Importacion.DoesNotExist:
                 self.kilos_restantes = kilos_netos
         
+        super().save(*args, **kwargs)
+
+
+class IngresoMaterial(models.Model):
+    """Ingreso de bolsas asociado a una importación real."""
+
+    fecha = models.DateField(default=timezone.localdate, db_index=True)
+    importacion = models.ForeignKey(
+        Importacion,
+        on_delete=models.PROTECT,
+        related_name="ingresos_material",
+        null=True,
+        blank=True,
+        verbose_name="Importación",
+        help_text="Obligatoria para ingresos nuevos.",
+    )
+    tipo_bolsa = models.CharField(max_length=20, choices=TIPOS_BOLSA)
+    cantidad = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Cantidad de bolsas recibidas (mayor a 0).",
+    )
+    control_contenedor = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="Control por contenedor",
+        help_text="Incluye este ingreso en el stock operativo de su importación.",
+    )
+    recepcion_key = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="Clave de recepción",
+        help_text="Agrupa las líneas de una misma recepción e impide duplicados.",
+    )
+    observacion = models.TextField(blank=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ingresos_material",
+        verbose_name="Registrado por",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-fecha", "-id"]
+        verbose_name = "Ingreso de material"
+        verbose_name_plural = "Ingresos de material"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recepcion_key", "tipo_bolsa"],
+                condition=models.Q(recepcion_key__isnull=False),
+                name="uniq_recepcion_key_tipo_bolsa",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["importacion", "tipo_bolsa", "control_contenedor"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.fecha} - {self.get_tipo_bolsa_display()} "
+            f"({self.cantidad} bolsas)"
+        )
+
+    def clean(self):
+        super().clean()
+
+        if self.cantidad is not None and self.cantidad <= 0:
+            raise ValidationError({
+                "cantidad": "La cantidad debe ser mayor a 0."
+            })
+
+        if self.control_contenedor and self.importacion_id is None:
+            raise ValidationError({
+                "importacion": "Un ingreso del control por contenedor debe tener importación."
+            })
+
+        if (
+            not self.pk
+            and self.control_contenedor
+            and self.importacion_id
+        ):
+            control = ControlTrazabilidad.objects.filter(pk=1).first()
+            if (
+                control
+                and self.importacion.fecha < control.fecha_inicio
+            ):
+                raise ValidationError({
+                    "importacion": (
+                        "La importación es anterior al inicio del control y está "
+                        "cerrada para nuevas recepciones."
+                    )
+                })
+
+        if self.importacion_id is None:
+            if not self.pk:
+                raise ValidationError({
+                    "importacion": "Debe seleccionar una importación real."
+                })
+
+            # Solo los registros históricos ya existentes pueden quedar sin
+            # importación. Un ingreso real no puede perder su importación.
+            if not IngresoMaterial.objects.filter(
+                pk=self.pk, importacion__isnull=True
+            ).exists():
+                raise ValidationError({
+                    "importacion": "Debe seleccionar una importación real."
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ControlTrazabilidad(models.Model):
+    """Configuración única del control operativo por contenedor."""
+
+    fecha_inicio = models.DateField(
+        default=timezone.localdate,
+        verbose_name="Fecha de inicio",
+    )
+    activo = models.BooleanField(default=True)
+    nota = models.TextField(blank=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="controles_trazabilidad",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Control de trazabilidad"
+        verbose_name_plural = "Control de trazabilidad"
+
+    def __str__(self):
+        return f"Control desde {self.fecha_inicio} ({'activo' if self.activo else 'inactivo'})"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        return cls.objects.filter(pk=1).first()
+
+
+class MovimientoBolsasVenta(models.Model):
+    """Libro append-only de asignaciones, devoluciones y reversiones por contenedor."""
+
+    class TipoMovimiento(models.TextChoices):
+        ASIGNACION = "asignacion", "Asignación a venta"
+        DEVOLUCION = "devolucion", "Devolución física"
+        REVERSION = "reversion", "Reversión"
+
+    venta_item = models.ForeignKey(
+        VentaItem,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="movimientos_bolsas",
+    )
+    venta_item_ref = models.IntegerField(null=True, blank=True)
+    venta_ref = models.IntegerField(null=True, blank=True)
+    sku = models.CharField(max_length=40, blank=True)
+    importacion = models.ForeignKey(
+        Importacion,
+        on_delete=models.PROTECT,
+        related_name="movimientos_bolsas",
+    )
+    tipo_bolsa = models.CharField(max_length=20, choices=TIPOS_BOLSA)
+    cantidad = models.IntegerField(
+        help_text="Positiva para asignaciones; negativa para devoluciones o reversiones."
+    )
+    tipo_movimiento = models.CharField(
+        max_length=20,
+        choices=TipoMovimiento.choices,
+        default=TipoMovimiento.ASIGNACION,
+        db_index=True,
+    )
+    movimiento_origen = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reversiones",
+    )
+    idempotency_key = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Evita registrar dos veces el mismo movimiento.",
+    )
+    observacion = models.TextField(blank=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="movimientos_bolsas",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-creado_en", "-id"]
+        verbose_name = "Movimiento de bolsas por contenedor"
+        verbose_name_plural = "Movimientos de bolsas por contenedor"
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(cantidad=0),
+                name="movimiento_bolsas_cantidad_no_cero",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["importacion", "tipo_bolsa"]),
+            models.Index(fields=["venta_item", "tipo_bolsa"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.get_tipo_movimiento_display()} {self.cantidad:+d} "
+            f"{self.get_tipo_bolsa_display()} - {self.importacion}"
+        )
+
+    def clean(self):
+        super().clean()
+        if self.tipo_movimiento == self.TipoMovimiento.ASIGNACION and self.cantidad <= 0:
+            raise ValidationError({"cantidad": "Una asignación debe ser positiva."})
+        if self.tipo_movimiento == self.TipoMovimiento.DEVOLUCION and self.cantidad >= 0:
+            raise ValidationError({"cantidad": "Una devolución debe ser negativa."})
+        if self.cantidad == 0:
+            raise ValidationError({"cantidad": "La cantidad no puede ser cero."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
 
 

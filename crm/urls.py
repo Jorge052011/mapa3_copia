@@ -22,6 +22,9 @@ urlpatterns = [
     path("ventas/<int:venta_id>/", views.venta_detalle, name="venta_detalle"),
     path("ventas/<int:venta_id>/items/agregar/", views.venta_item_agregar, name="venta_item_agregar"),
     path("ventas/items/<int:item_id>/borrar/", views.venta_item_borrar, name="venta_item_borrar"),
+    path("ventas/trazabilidad/asignar/", views.asignar_trazabilidad, name="asignar_trazabilidad"),
+    path("ventas/trazabilidad/<int:movimiento_id>/revertir/", views.revertir_trazabilidad, name="revertir_trazabilidad"),
+    path("ventas/trazabilidad/<int:movimiento_id>/devolver/", views.devolucion_trazabilidad, name="devolucion_trazabilidad"),
 
     # Buscadores
     path("buscar-telefono/", views.buscar_cliente_telefono, name="buscar_cliente_telefono"),
@@ -37,6 +40,14 @@ urlpatterns = [
 
     # ✅ Nueva ruta para ajustar inventario
     path("inventario/ajustar/", views.ajustar_inventario, name="ajustar_inventario"),
+
+    # ✅ Registro y consulta de ingresos de material
+    path("inventario/ingresos/", views.ingresos_material, name="ingresos_material"),
+
+    # Control independiente por contenedor y conciliación
+    path("inventario/contenedores/", views.contenedores_list, name="contenedores_list"),
+    path("inventario/contenedores/<int:importacion_id>/", views.contenedor_detalle, name="contenedor_detalle"),
+    path("inventario/conciliacion/", views.conciliacion_trazabilidad, name="conciliacion_trazabilidad"),
 
     # Exportar Excel de ventas
     path("ventas/exportar-excel/", views.exportar_ventas_excel, name="exportar_ventas_excel"),

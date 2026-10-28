@@ -179,41 +179,6 @@
 </div>
 {% endif %}
 
-<!-- Registro de depósito múltiple: trabaja con las ventas visibles de esta página -->
-<div style="margin: 15px 0; padding: 16px; border: 1px solid #b8cde0; border-radius: 8px; background: #f5f9fc;">
-    <h3 style="margin-top: 0;">Registrar depósito en efectivo</h3>
-    <p>Selecciona las ventas pendientes de esta página. El servidor verificará nuevamente que ninguna esté depositada.</p>
-    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:end;">
-        <div>
-            <label for="monto_depositado"><strong>Monto efectivamente depositado ($)</strong></label><br>
-            <input id="monto_depositado" name="monto_depositado" form="deposito-form"
-                   type="number" min="1" step="1" required
-                   style="padding:8px; width:220px; max-width:100%;">
-        </div>
-        <div>
-            <strong>Ventas seleccionadas:</strong>
-            <div><span id="deposito-cantidad">0</span></div>
-        </div>
-        <div>
-            <strong>Total de ventas:</strong>
-            <div id="deposito-total">$0</div>
-        </div>
-        <div>
-            <strong>Diferencia (depósito − ventas):</strong>
-            <div id="deposito-diferencia">Ingresa el depósito</div>
-        </div>
-    </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
-        <button type="button" id="deposito-sugerir"
-                style="padding:8px 12px; cursor:pointer;">Sugerir combinación</button>
-        <button type="submit" form="deposito-form"
-                style="padding:9px 15px; background:#176b3a; color:white; border:0; border-radius:4px; cursor:pointer;">
-            Registrar depósito seleccionado
-        </button>
-    </div>
-    <p id="deposito-sugerencia" aria-live="polite" style="margin-bottom:0;"></p>
-</div>
-
 <form id="deposito-form" method="post" action="{% url 'crm:deposito_registrar' %}">
 {% csrf_token %}
 
@@ -306,6 +271,41 @@
 </table>
 </div>
 </form>
+
+<!-- Registro de depósito múltiple: trabaja con las ventas visibles de esta página -->
+<div style="margin: 15px 0; padding: 16px; border: 1px solid #b8cde0; border-radius: 8px; background: #f5f9fc;">
+    <h3 style="margin-top: 0;">Registrar depósito en efectivo</h3>
+    <p>Selecciona las ventas pendientes de esta página. El servidor verificará nuevamente que ninguna esté depositada.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:end;">
+        <div>
+            <label for="monto_depositado"><strong>Monto efectivamente depositado ($)</strong></label><br>
+            <input id="monto_depositado" name="monto_depositado" form="deposito-form"
+                   type="number" min="1" step="1" required
+                   style="padding:8px; width:220px; max-width:100%;">
+        </div>
+        <div>
+            <strong>Ventas seleccionadas:</strong>
+            <div><span id="deposito-cantidad">0</span></div>
+        </div>
+        <div>
+            <strong>Total de ventas:</strong>
+            <div id="deposito-total">$0</div>
+        </div>
+        <div>
+            <strong>Diferencia (depósito − ventas):</strong>
+            <div id="deposito-diferencia">Ingresa el depósito</div>
+        </div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
+        <button type="button" id="deposito-sugerir"
+                style="padding:8px 12px; cursor:pointer;">Sugerir combinación</button>
+        <button type="submit" form="deposito-form"
+                style="padding:9px 15px; background:#176b3a; color:white; border:0; border-radius:4px; cursor:pointer;">
+            Registrar depósito seleccionado
+        </button>
+    </div>
+    <p id="deposito-sugerencia" aria-live="polite" style="margin-bottom:0;"></p>
+</div>
 
 <script>
 (function () {

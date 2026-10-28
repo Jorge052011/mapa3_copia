@@ -1,29 +1,21 @@
 from django.db.models import Sum
 from django.utils import timezone
 
-from .models import VentaItem, Venta
+from .constants import TIPOS_BOLSA
+from .models import VentaItem, Venta, IngresoMaterial
 
 
-# =============================================================
-# STOCKS INICIALES POR TIPO DE BOLSA
-# Formato:
-# (
-#   bolsas_8_lav,
-#   bolsas_20_lav,
-#   bolsas_8_carbon,
-#   bolsas_20_carbon,
-#   bolsas_20_talco,
-#   bolsas_20_cafe,
-# )
-# =============================================================
-STOCK_INICIAL_8_LAV = 1095 - 6
-STOCK_INICIAL_20_LAV = (550 + 862) - 9
-STOCK_INICIAL_8_CARBON = 999 - 14
-STOCK_INICIAL_20_CARBON = 400 + 750-2-6
-STOCK_INICIAL_20_TALCO = (300 + 150) - 1-2
-
-# Reemplaza 0 por la cantidad real de bolsas de 20 kg aroma café recibidas.
-STOCK_INICIAL_20_CAFE = 50
+def stock_inicial_por_tipo():
+    """Stock inicial por tipo de bolsa, calculado desde IngresoMaterial."""
+    totales = {
+        fila["tipo_bolsa"]: fila["total"] or 0
+        for fila in (
+            IngresoMaterial.objects
+            .values("tipo_bolsa")
+            .annotate(total=Sum("cantidad"))
+        )
+    }
+    return {tipo: totales.get(tipo, 0) for tipo, _ in TIPOS_BOLSA}
 
 
 # =============================================================
@@ -96,23 +88,24 @@ SKU_BOLSAS_MAP = {
 
 
 def consumo_bolsas(desde=None, hasta=None):
+    stock_inicial = stock_inicial_por_tipo()
+
     if desde is None:
         desde = timezone.datetime(2025, 8, 1).date()
 
-    if hasta is None:
-        hasta = timezone.localdate()
+    filtros = {"venta__fecha__date__gte": desde}
+    if hasta is not None:
+        filtros["venta__fecha__date__lte"] = hasta
 
     items_qs = (
         VentaItem.objects
         .select_related("producto", "venta")
-        .filter(
-            venta__fecha__date__gte=desde,
-            venta__fecha__date__lte=hasta,
-        )
+        .filter(**filtros)
         .values(
             "producto__sku",
             "producto__nombre",
             "venta__tipo_documento",
+            "venta__devolucion_fisica",
         )
         .annotate(unidades_sku=Sum("cantidad"))
     )
@@ -131,7 +124,13 @@ def consumo_bolsas(desde=None, hasta=None):
         sku = (r["producto__sku"] or "").strip()
         nombre = r["producto__nombre"] or ""
         tipo_doc = r["venta__tipo_documento"]
+        devolucion_fisica = r["venta__devolucion_fisica"]
         unidades = int(r["unidades_sku"] or 0)
+
+        # Una nota de crédito solo mueve bolsas si representa una devolución
+        # física. Las notas puramente monetarias no alteran el inventario.
+        if tipo_doc == Venta.TipoDocumento.NOTA_CREDITO and not devolucion_fisica:
+            continue
 
         signo = -1 if tipo_doc == Venta.TipoDocumento.NOTA_CREDITO else 1
 
@@ -203,20 +202,20 @@ def consumo_bolsas(desde=None, hasta=None):
         "consumo_20_cafe": total_20_cafe,
 
         # --- Stocks iniciales ---
-        "stock_inicial_8_lav": STOCK_INICIAL_8_LAV,
-        "stock_inicial_20_lav": STOCK_INICIAL_20_LAV,
-        "stock_inicial_8_carbon": STOCK_INICIAL_8_CARBON,
-        "stock_inicial_20_carbon": STOCK_INICIAL_20_CARBON,
-        "stock_inicial_20_talco": STOCK_INICIAL_20_TALCO,
-        "stock_inicial_20_cafe": STOCK_INICIAL_20_CAFE,
+        "stock_inicial_8_lav": stock_inicial["8_lav"],
+        "stock_inicial_20_lav": stock_inicial["20_lav"],
+        "stock_inicial_8_carbon": stock_inicial["8_carbon"],
+        "stock_inicial_20_carbon": stock_inicial["20_carbon"],
+        "stock_inicial_20_talco": stock_inicial["20_talco"],
+        "stock_inicial_20_cafe": stock_inicial["20_cafe"],
 
         # --- Inventarios actuales ---
-        "inventario_8_lav": STOCK_INICIAL_8_LAV - total_8_lav,
-        "inventario_20_lav": STOCK_INICIAL_20_LAV - total_20_lav,
-        "inventario_8_carbon": STOCK_INICIAL_8_CARBON - total_8_carbon,
-        "inventario_20_carbon": STOCK_INICIAL_20_CARBON - total_20_carbon,
-        "inventario_20_talco": STOCK_INICIAL_20_TALCO - total_20_talco,
-        "inventario_20_cafe": STOCK_INICIAL_20_CAFE - total_20_cafe,
+        "inventario_8_lav": stock_inicial["8_lav"] - total_8_lav,
+        "inventario_20_lav": stock_inicial["20_lav"] - total_20_lav,
+        "inventario_8_carbon": stock_inicial["8_carbon"] - total_8_carbon,
+        "inventario_20_carbon": stock_inicial["20_carbon"] - total_20_carbon,
+        "inventario_20_talco": stock_inicial["20_talco"] - total_20_talco,
+        "inventario_20_cafe": stock_inicial["20_cafe"] - total_20_cafe,
 
         # --- Campos legacy ---
         "consumo_8": total_8_lav + total_8_carbon,
@@ -227,28 +226,28 @@ def consumo_bolsas(desde=None, hasta=None):
             + total_20_cafe
         ),
         "inventario_8": (
-            STOCK_INICIAL_8_LAV - total_8_lav
+            stock_inicial["8_lav"] - total_8_lav
         ) + (
-            STOCK_INICIAL_8_CARBON - total_8_carbon
+            stock_inicial["8_carbon"] - total_8_carbon
         ),
         "inventario_20": (
-            STOCK_INICIAL_20_LAV - total_20_lav
+            stock_inicial["20_lav"] - total_20_lav
         ) + (
-            STOCK_INICIAL_20_CARBON - total_20_carbon
+            stock_inicial["20_carbon"] - total_20_carbon
         ) + (
-            STOCK_INICIAL_20_TALCO - total_20_talco
+            stock_inicial["20_talco"] - total_20_talco
         ) + (
-            STOCK_INICIAL_20_CAFE - total_20_cafe
+            stock_inicial["20_cafe"] - total_20_cafe
         ),
         "stock_inicial_8": (
-            STOCK_INICIAL_8_LAV
-            + STOCK_INICIAL_8_CARBON
+            stock_inicial["8_lav"]
+            + stock_inicial["8_carbon"]
         ),
         "stock_inicial_20": (
-            STOCK_INICIAL_20_LAV
-            + STOCK_INICIAL_20_CARBON
-            + STOCK_INICIAL_20_TALCO
-            + STOCK_INICIAL_20_CAFE
+            stock_inicial["20_lav"]
+            + stock_inicial["20_carbon"]
+            + stock_inicial["20_talco"]
+            + stock_inicial["20_cafe"]
         ),
 
         "detalle": detalle,

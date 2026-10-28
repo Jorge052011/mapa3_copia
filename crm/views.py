@@ -8,6 +8,7 @@ from calendar import monthrange
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
 from django.db.models import (
@@ -20,9 +21,29 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from .models import Cliente, Venta, VentaItem, Producto, Importacion, GastoOperacional, InventarioBolsasAjuste, DepositoEdicion, Deposito
+from .models import (
+    Cliente, Venta, VentaItem, Producto, Importacion, IngresoMaterial,
+    GastoOperacional, InventarioBolsasAjuste, DepositoEdicion, Deposito,
+    MovimientoBolsasVenta,
+)
 from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
-from .forms import ClienteForm, VentaForm, VentaItemForm
+from .forms import (
+    ClienteForm, VentaForm, VentaItemForm, IngresoMaterialForm,
+    RecepcionMaterialForm, RecepcionLineaFormSet,
+)
+from .services_trazabilidad import (
+    asignar_bolsas,
+    conciliacion_por_tipo,
+    control_activo,
+    crear_recepcion,
+    detalle_trazabilidad_venta,
+    fecha_inicio_control,
+    registrar_devolucion_fisica,
+    resumen_contenedor,
+    revertir_movimiento,
+    saldos_por_contenedor,
+    ventas_con_trazabilidad_pendiente,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -296,13 +317,26 @@ def venta_nueva(request):
 def venta_editar(request, venta_id):
     venta = get_object_or_404(Venta, id=venta_id)
 
+    tipo_anterior = venta.tipo_documento
+
     if request.method == "POST":
         form = VentaForm(request.POST, instance=venta)
         if form.is_valid():
-            form.save()
-            logger.info(f"Venta #{venta.id} editada por {request.user.username}")
-            messages.success(request, "Venta actualizada correctamente.")
-            return redirect("crm:venta_detalle", venta_id=venta.id)
+            tipo_nuevo = form.cleaned_data.get("tipo_documento")
+            tiene_movimientos = MovimientoBolsasVenta.objects.filter(
+                venta_item__venta=venta
+            ).exists()
+            if tipo_nuevo != tipo_anterior and tiene_movimientos:
+                form.add_error(
+                    "tipo_documento",
+                    "No se puede cambiar el tipo de documento mientras la venta "
+                    "tenga movimientos de trazabilidad. Revierte o reclasifica primero.",
+                )
+            else:
+                form.save()
+                logger.info(f"Venta #{venta.id} editada por {request.user.username}")
+                messages.success(request, "Venta actualizada correctamente.")
+                return redirect("crm:venta_detalle", venta_id=venta.id)
     else:
         form = VentaForm(instance=venta)
 
@@ -317,8 +351,29 @@ def venta_editar(request, venta_id):
 @require_POST
 def venta_borrar(request, venta_id):
     venta = get_object_or_404(Venta, id=venta_id)
-    logger.warning(f"Venta #{venta.id} borrada por {request.user.username}")
-    venta.delete()
+    movimientos = list(
+        MovimientoBolsasVenta.objects
+        .filter(venta_item__venta=venta)
+        .select_related("venta_item")
+    )
+    try:
+        with transaction.atomic():
+            for movimiento in movimientos:
+                if (
+                    movimiento.tipo_movimiento != MovimientoBolsasVenta.TipoMovimiento.REVERSION
+                    and not movimiento.reversiones.exists()
+                ):
+                    revertir_movimiento(
+                        movimiento,
+                        usuario=request.user,
+                        observacion=f"Reversión por borrado de venta #{venta.id}",
+                    )
+            logger.warning(f"Venta #{venta.id} borrada por {request.user.username}")
+            venta.delete()
+    except ValidationError as exc:
+        messages.error(request, "No se pudo borrar la venta: " + "; ".join(exc.messages))
+        return redirect("crm:venta_detalle", venta_id=venta.id)
+
     messages.success(request, "Venta borrada.")
     return redirect("crm:ventas_list")
 
@@ -337,10 +392,25 @@ def venta_detalle(request, venta_id):
 
     productos = Producto.objects.filter(activo=True).order_by("nombre")
 
+    trazabilidad = []
+    if (
+        venta.tipo_documento != Venta.TipoDocumento.NOTA_CREDITO
+        and venta.fecha.date() >= fecha_inicio_control()
+    ):
+        trazabilidad = detalle_trazabilidad_venta(venta)
+
     return render(
         request,
         "crm/venta_detalle.html",
-        {"venta": venta, "items": items, "form_item": form_item, "productos": productos},
+        {
+            "venta": venta,
+            "items": items,
+            "form_item": form_item,
+            "productos": productos,
+            "trazabilidad": trazabilidad,
+            "control_activo": control_activo(),
+            "fecha_inicio_trazabilidad": fecha_inicio_control(),
+        },
     )
 
 
@@ -365,8 +435,24 @@ def venta_item_agregar(request, venta_id):
 def venta_item_borrar(request, item_id):
     item = get_object_or_404(VentaItem, id=item_id)
     venta_id = item.venta_id
-    logger.info(f"Item #{item.id} eliminado de venta #{venta_id} por {request.user.username}")
-    item.delete()
+    try:
+        with transaction.atomic():
+            for movimiento in item.movimientos_bolsas.all():
+                if (
+                    movimiento.tipo_movimiento != MovimientoBolsasVenta.TipoMovimiento.REVERSION
+                    and not movimiento.reversiones.exists()
+                ):
+                    revertir_movimiento(
+                        movimiento,
+                        usuario=request.user,
+                        observacion=f"Reversión por borrado de ítem #{item.id}",
+                    )
+            logger.info(f"Item #{item.id} eliminado de venta #{venta_id} por {request.user.username}")
+            item.delete()
+    except ValidationError as exc:
+        messages.error(request, "No se pudo borrar el ítem: " + "; ".join(exc.messages))
+        return redirect("crm:venta_detalle", venta_id=venta_id)
+
     messages.success(request, "Ítem eliminado.")
     return redirect("crm:venta_detalle", venta_id=venta_id)
 
@@ -1104,6 +1190,197 @@ def ajustar_inventario(request):
         "motivo_choices": MOTIVOS_AJUSTE,
     }
     return render(request, "crm/ajustar_inventario.html", context)
+
+
+@login_required
+def ingresos_material(request):
+    """Recepción multi-línea y consulta de ingresos por importación."""
+
+    formset = None
+    if request.method == "POST":
+        form = RecepcionMaterialForm(request.POST)
+        formset = RecepcionLineaFormSet(request.POST, prefix="lineas")
+
+        if form.is_valid() and formset.is_valid():
+            lineas = []
+            for linea in formset:
+                datos = getattr(linea, "cleaned_data", None)
+                if not datos:
+                    continue
+                tipo_bolsa = datos.get("tipo_bolsa")
+                cantidad = datos.get("cantidad")
+                if tipo_bolsa and cantidad:
+                    lineas.append((tipo_bolsa, cantidad))
+
+            tipos = [tipo for tipo, _ in lineas]
+            if len(tipos) != len(set(tipos)):
+                form.add_error(None, "No repitas el mismo tipo de bolsa en una recepción.")
+            elif not lineas:
+                form.add_error(None, "Agrega al menos una línea de recepción.")
+            else:
+                try:
+                    creados = crear_recepcion(
+                        form.cleaned_data["importacion"],
+                        form.cleaned_data["fecha"],
+                        lineas,
+                        usuario=request.user,
+                        recepcion_key=form.cleaned_data.get("recepcion_key"),
+                    )
+                except ValidationError as exc:
+                    form.add_error(None, "; ".join(exc.messages))
+                else:
+                    messages.success(
+                        request,
+                        f"Recepción registrada: {len(creados)} línea(s) para "
+                        f"{form.cleaned_data['importacion']}.",
+                    )
+                    return redirect("crm:ingresos_material")
+
+        if form.errors or (formset and formset.errors):
+            messages.error(
+                request,
+                "No se pudo registrar el ingreso. Revisa los datos del formulario.",
+            )
+    else:
+        form = RecepcionMaterialForm(initial={"fecha": timezone.localdate()})
+        formset = RecepcionLineaFormSet(prefix="lineas")
+
+    ingresos = (
+        IngresoMaterial.objects
+        .select_related("importacion", "creado_por")
+        .order_by("-fecha", "-id")
+    )
+
+    return render(request, "crm/ingresos_material.html", {
+        "form": form,
+        "formset": formset,
+        "ingresos": ingresos,
+    })
+
+
+@login_required
+def contenedores_list(request):
+    resumenes = saldos_por_contenedor()
+    return render(request, "crm/contenedores_list.html", {
+        "resumenes": resumenes,
+        "control_activo": control_activo(),
+        "fecha_inicio": fecha_inicio_control(),
+    })
+
+
+@login_required
+def contenedor_detalle(request, importacion_id):
+    importacion = get_object_or_404(Importacion, id=importacion_id)
+    resumen = resumen_contenedor(importacion)
+    movimientos = (
+        MovimientoBolsasVenta.objects
+        .filter(importacion=importacion)
+        .select_related("venta_item__producto", "creado_por", "movimiento_origen")
+        .order_by("-creado_en", "-id")
+    )
+    return render(request, "crm/contenedor_detalle.html", {
+        "importacion": importacion,
+        "resumen": resumen,
+        "movimientos": movimientos,
+    })
+
+
+@login_required
+def conciliacion_trazabilidad(request):
+    return render(request, "crm/conciliacion_trazabilidad.html", {
+        "filas": conciliacion_por_tipo(),
+        "pendientes": ventas_con_trazabilidad_pendiente(),
+        "control_activo": control_activo(),
+        "fecha_inicio": fecha_inicio_control(),
+    })
+
+
+@login_required
+@require_POST
+def asignar_trazabilidad(request):
+    item = get_object_or_404(
+        VentaItem.objects.select_related("venta", "producto"),
+        id=request.POST.get("item_id"),
+    )
+    importacion = get_object_or_404(Importacion, id=request.POST.get("importacion_id"))
+    tipo_bolsa = request.POST.get("tipo_bolsa")
+    cantidad = request.POST.get("cantidad")
+    token = (request.POST.get("idempotency_key") or "").strip() or None
+
+    try:
+        asignar_bolsas(
+            item=item,
+            importacion=importacion,
+            tipo_bolsa=tipo_bolsa,
+            cantidad=cantidad,
+            usuario=request.user,
+            idempotency_key=token,
+        )
+    except ValidationError as exc:
+        messages.error(request, "No se pudo asignar: " + "; ".join(exc.messages))
+    else:
+        messages.success(request, "Asignación de bolsas registrada.")
+
+    return redirect("crm:venta_detalle", venta_id=item.venta_id)
+
+
+@login_required
+@require_POST
+def revertir_trazabilidad(request, movimiento_id):
+    movimiento = get_object_or_404(MovimientoBolsasVenta, id=movimiento_id)
+    venta_id = request.POST.get("venta_id") or movimiento.venta_ref
+    token = (request.POST.get("idempotency_key") or "").strip() or None
+
+    try:
+        revertir_movimiento(
+            movimiento,
+            usuario=request.user,
+            idempotency_key=token,
+            observacion="Reversión manual de asignación",
+        )
+    except ValidationError as exc:
+        messages.error(request, "No se pudo revertir: " + "; ".join(exc.messages))
+    else:
+        messages.success(request, "Movimiento revertido.")
+
+    if venta_id:
+        return redirect("crm:venta_detalle", venta_id=venta_id)
+    return redirect("crm:contenedores_list")
+
+
+@login_required
+@require_POST
+def devolucion_trazabilidad(request, movimiento_id):
+    movimiento = get_object_or_404(
+        MovimientoBolsasVenta.objects.select_related("importacion", "venta_item"),
+        id=movimiento_id,
+    )
+    cantidad = request.POST.get("cantidad") or 1
+    venta_id = movimiento.venta_ref
+    token = (request.POST.get("idempotency_key") or "").strip() or None
+
+    if not movimiento.venta_item:
+        messages.error(request, "El movimiento no conserva un ítem asociado.")
+        return redirect("crm:venta_detalle", venta_id=venta_id) if venta_id else redirect("crm:contenedores_list")
+
+    try:
+        registrar_devolucion_fisica(
+            item=movimiento.venta_item,
+            importacion=movimiento.importacion,
+            tipo_bolsa=movimiento.tipo_bolsa,
+            cantidad=cantidad,
+            usuario=request.user,
+            idempotency_key=token,
+            observacion="Devolución física registrada desde venta",
+        )
+    except ValidationError as exc:
+        messages.error(request, "No se pudo registrar la devolución: " + "; ".join(exc.messages))
+    else:
+        messages.success(request, "Devolución física registrada.")
+
+    if venta_id:
+        return redirect("crm:venta_detalle", venta_id=venta_id)
+    return redirect("crm:contenedores_list")
 
 
 # -------------------------

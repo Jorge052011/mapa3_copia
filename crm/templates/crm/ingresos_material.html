@@ -1,0 +1,144 @@
+{% extends "crm/base.html" %}
+{% block title %}Ingresos de material{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root { --primary:#4f46e5; --primary-dark:#4338ca; --border:#e2e8f0; --text-dark:#1e293b; --text-muted:#64748b; }
+  body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; }
+  .ingresos-container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .card { background:#fff; border-radius:16px; padding:24px; box-shadow:0 4px 6px rgba(0,0,0,.07); margin-bottom:24px; }
+  .card h2 { margin:0 0 20px; color:var(--text-dark); }
+  .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-group label { font-size:13px; font-weight:600; color:var(--text-dark); text-transform:uppercase; letter-spacing:.5px; }
+  .form-group input, .form-group select, .form-group textarea { padding:10px 12px; border:2px solid var(--border); border-radius:10px; font-size:14px; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+  .form-group.full { grid-column:1 / -1; }
+  .errorlist { color:#dc2626; font-size:13px; margin:0; padding-left:18px; }
+  .btn { display:inline-block; padding:11px 22px; border-radius:10px; font-weight:600; text-decoration:none; cursor:pointer; border:none; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-secondary { background:#e2e8f0; color:var(--text-dark); margin-left:8px; }
+  .alert { padding:12px 16px; border-radius:10px; margin-bottom:16px; font-weight:600; }
+  .alert-success { background:#d1fae5; color:#065f46; }
+  .alert-error { background:#fee2e2; color:#991b1b; }
+  .alert-info { background:#dbeafe; color:#1e40af; }
+  .alert-warning { background:#fef3c7; color:#92400e; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; font-size:14px; }
+  th { font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:.5px; }
+  .muted { color:var(--text-muted); }
+  .empty { text-align:center; color:var(--text-muted); padding:24px; }
+  .actions { margin-top:20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ingresos-container">
+  {% for message in messages %}{% endfor %}
+
+  <div class="card">
+    <h2>📥 Registrar ingreso de bolsas</h2>
+    <p class="muted">El ingreso debe estar asociado a una importación real.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      {{ form.recepcion_key }}
+      {{ form.non_field_errors }}
+      {{ formset.management_form }}
+      {{ formset.non_form_errors }}
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="{{ form.fecha.id_for_label }}">Fecha</label>
+          {{ form.fecha }}
+          {{ form.fecha.errors }}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.importacion.id_for_label }}">Importación</label>
+          {{ form.importacion }}
+          {{ form.importacion.errors }}
+          <small class="muted">Solo importaciones habilitadas desde el inicio del control.</small>
+        </div>
+
+        <div class="form-group full">
+          <label for="{{ form.observacion.id_for_label }}">Observación (opcional)</label>
+          {{ form.observacion }}
+          {{ form.observacion.errors }}
+        </div>
+      </div>
+
+      <h3 style="margin:24px 0 12px;">Líneas recibidas</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de bolsa</th>
+              <th>Cantidad</th>
+              <th>Errores</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for linea in formset %}
+              <tr>
+                <td>{{ linea.tipo_bolsa }}</td>
+                <td>{{ linea.cantidad }}</td>
+                <td>
+                  {{ linea.tipo_bolsa.errors }}
+                  {{ linea.cantidad.errors }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">💾 Guardar recepción</button>
+        <a href="{% url 'crm:contenedores_list' %}" class="btn btn-secondary">Ver contenedores</a>
+        <a href="{% url 'crm:consumo_bolsas' %}" class="btn btn-secondary">Volver a inventario</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Historial de ingresos</h2>
+
+    {% if ingresos %}
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Importación</th>
+              <th>Tipo de bolsa</th>
+              <th>Cantidad</th>
+              <th>Control contenedor</th>
+              <th>Recepción</th>
+              <th>Registrado por</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ingreso in ingresos %}
+              <tr>
+                <td>{{ ingreso.fecha|date:"d/m/Y" }}</td>
+                <td>{{ ingreso.importacion.descripcion|default:"Saldo inicial" }}</td>
+                <td>{{ ingreso.get_tipo_bolsa_display }}</td>
+                <td><strong>{{ ingreso.cantidad }}</strong></td>
+                <td>{% if ingreso.control_contenedor %}Sí{% else %}Histórico{% endif %}</td>
+                <td>{{ ingreso.recepcion_key|default:"-" }}</td>
+                <td>{{ ingreso.creado_por|default:"-" }}</td>
+                <td>{{ ingreso.observacion|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Todavía no hay ingresos registrados.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

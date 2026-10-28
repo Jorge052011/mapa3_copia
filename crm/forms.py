@@ -1,5 +1,17 @@
+from uuid import uuid4
+
 from django import forms
-from .models import Cliente, Venta, VentaItem, Producto
+from django.forms import formset_factory
+
+from .models import (
+    Cliente,
+    Venta,
+    VentaItem,
+    Producto,
+    Importacion,
+    IngresoMaterial,
+)
+from .services_trazabilidad import importaciones_recepcionables
 
 
 class ClienteForm(forms.ModelForm):
@@ -36,6 +48,8 @@ class VentaForm(forms.ModelForm):
             "observaciones",
             "repartidor",       # ✅ Nuevo campo: Repartidor
             "modo_pago",        # ✅ Nuevo campo: Modo de pago
+            "venta_origen",
+            "devolucion_fisica",
         ]
     
     def __init__(self, *args, **kwargs):
@@ -43,6 +57,11 @@ class VentaForm(forms.ModelForm):
 
         # Orden descendente por ID (clientes más recientes primero)
         self.fields['cliente'].queryset = Cliente.objects.all().order_by('-id')
+        self.fields['venta_origen'].queryset = (
+            Venta.objects.exclude(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)
+            .order_by('-fecha', '-id')
+        )
+        self.fields['venta_origen'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -72,4 +91,81 @@ class VentaItemForm(forms.ModelForm):
 
     class Meta:
         model = VentaItem
-        fields = ("producto", "cantidad", "precio_unitario")
+        fields = ("producto", "item_origen", "cantidad", "precio_unitario")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["item_origen"].required = False
+        self.fields["item_origen"].queryset = (
+            VentaItem.objects.select_related("venta", "producto")
+            .order_by("-id")
+        )
+
+
+class IngresoMaterialForm(forms.ModelForm):
+    class Meta:
+        model = IngresoMaterial
+        fields = (
+            "fecha",
+            "importacion",
+            "tipo_bolsa",
+            "cantidad",
+            "observacion",
+        )
+        widgets = {
+            "fecha": forms.DateInput(attrs={"type": "date"}),
+            "observacion": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["importacion"].required = True
+        self.fields["importacion"].queryset = importaciones_recepcionables()
+
+
+class RecepcionMaterialForm(forms.Form):
+    recepcion_key = forms.UUIDField(
+        required=False,
+        widget=forms.HiddenInput,
+    )
+    fecha = forms.DateField(
+        label="Fecha de recepción",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    importacion = forms.ModelChoiceField(
+        label="Importación",
+        queryset=Importacion.objects.none(),
+        empty_label="Seleccione importación...",
+    )
+    observacion = forms.CharField(
+        label="Observación",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["importacion"].queryset = importaciones_recepcionables()
+        if not self.is_bound and not self.initial.get("recepcion_key"):
+            self.initial["recepcion_key"] = uuid4()
+
+
+class IngresoLineaForm(forms.Form):
+    tipo_bolsa = forms.ChoiceField(
+        label="Tipo de bolsa",
+        choices=IngresoMaterial._meta.get_field("tipo_bolsa").choices,
+    )
+    cantidad = forms.IntegerField(
+        label="Cantidad",
+        min_value=0,
+        initial=0,
+    )
+
+
+RecepcionLineaFormSet = formset_factory(
+    IngresoLineaForm,
+    extra=5,
+    min_num=1,
+    validate_min=True,
+    can_delete=False,
+)
