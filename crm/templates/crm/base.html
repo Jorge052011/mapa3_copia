@@ -45,6 +45,18 @@
           <a href="{% url 'crm:consumo_bolsas' %}" class="btn-inventario">
             📦 Inventario bolsas
           </a>
+          <a href="{% url 'crm:ingresos_material' %}"
+            class="{% if request.resolver_match.url_name == 'ingresos_material' %}active{% endif %}">
+            📥 Ingresos material
+          </a>
+          <a href="{% url 'crm:contenedores_list' %}"
+            class="{% if request.resolver_match.url_name == 'contenedores_list' or request.resolver_match.url_name == 'contenedor_detalle' %}active{% endif %}">
+            🚛 Contenedores
+          </a>
+          <a href="{% url 'crm:conciliacion_trazabilidad' %}"
+            class="{% if request.resolver_match.url_name == 'conciliacion_trazabilidad' %}active{% endif %}">
+            ⚖️ Conciliación
+          </a>
 
 
         </nav>

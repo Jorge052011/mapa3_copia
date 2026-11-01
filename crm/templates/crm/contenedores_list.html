@@ -1,0 +1,57 @@
+{% extends "crm/base.html" %}
+{% block title %}Contenedores{% endblock %}
+
+{% block content %}
+<h2>Control por contenedor</h2>
+<p>
+  Inicio del control: <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong>.
+  Estado:
+  <strong>{% if control_activo %}Activo{% else %}Inactivo{% endif %}</strong>.
+</p>
+<p class="muted">
+  Este control es independiente del inventario general de bodega. Los saldos
+  se calculan con los ingresos del contenedor y los movimientos de trazabilidad.
+</p>
+
+<p>
+  <a class="btn btn-secondary" href="{% url 'crm:ingresos_material' %}">Registrar recepción</a>
+  <a class="btn btn-secondary" href="{% url 'crm:conciliacion_trazabilidad' %}">Conciliar inventario</a>
+</p>
+
+{% for resumen in resumenes %}
+  <div class="card" style="margin-bottom:20px;">
+    <h3 style="margin-top:0;">
+      {{ resumen.importacion.fecha|date:"d/m/Y" }} —
+      {{ resumen.importacion.descripcion|default:"Importación" }}
+      <a class="btn btn-secondary" href="{% url 'crm:contenedor_detalle' resumen.importacion.id %}">Ver historial</a>
+    </h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo de bolsa</th>
+            <th>Recibido</th>
+            <th>Asignado</th>
+            <th>Devuelto / revertido</th>
+            <th>Saldo del contenedor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in resumen.filas %}
+            <tr>
+              <td>{{ fila.etiqueta }}</td>
+              <td>{{ fila.recibido }}</td>
+              <td>{{ fila.asignado }}</td>
+              <td>{{ fila.devuelto }}</td>
+              <td><strong>{{ fila.saldo }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <p class="muted">Todavía no hay importaciones con ingresos operativos.</p>
+{% endfor %}
+{% endblock %}

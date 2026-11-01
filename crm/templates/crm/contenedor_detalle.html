@@ -1,0 +1,85 @@
+{% extends "crm/base.html" %}
+{% block title %}Contenedor {{ importacion.id }}{% endblock %}
+
+{% block content %}
+<h2>
+  Contenedor {{ importacion.fecha|date:"d/m/Y" }} —
+  {{ importacion.descripcion|default:"Importación" }}
+</h2>
+
+<p class="muted">
+  Historial independiente del inventario general de bodega.
+</p>
+
+<p>
+  <a class="btn btn-secondary" href="{% url 'crm:contenedores_list' %}">Volver a contenedores</a>
+</p>
+
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="margin-top:0;">Saldos</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo de bolsa</th>
+          <th>Recibido</th>
+          <th>Asignado</th>
+          <th>Devuelto / revertido</th>
+          <th>Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in resumen.filas %}
+          <tr>
+            <td>{{ fila.etiqueta }}</td>
+            <td>{{ fila.recibido }}</td>
+            <td>{{ fila.asignado }}</td>
+            <td>{{ fila.devuelto }}</td>
+            <td><strong>{{ fila.saldo }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Movimientos</h3>
+  {% if movimientos %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Movimiento</th>
+            <th>Tipo de bolsa</th>
+            <th>Cantidad</th>
+            <th>Venta / ítem</th>
+            <th>Usuario</th>
+            <th>Observación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mov in movimientos %}
+            <tr>
+              <td>{{ mov.creado_en|date:"d/m/Y H:i" }}</td>
+              <td>{{ mov.get_tipo_movimiento_display }}</td>
+              <td>{{ mov.get_tipo_bolsa_display }}</td>
+              <td>{{ mov.cantidad }}</td>
+              <td>
+                {% if mov.venta_ref %}#{{ mov.venta_ref }}{% endif %}
+                {% if mov.venta_item_ref %} / ítem {{ mov.venta_item_ref }}{% endif %}
+                {% if not mov.venta_ref %}—{% endif %}
+              </td>
+              <td>{{ mov.creado_por|default:"-" }}</td>
+              <td>{{ mov.observacion|default:"-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">Sin movimientos registrados.</p>
+  {% endif %}
+</div>
+{% endblock %}

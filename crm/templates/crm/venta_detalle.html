@@ -97,6 +97,142 @@
 
 <hr>
 
+{% if trazabilidad %}
+  <h3>Trazabilidad por contenedor</h3>
+  <p class="muted">
+    Fecha de inicio del control: {{ fecha_inicio_trazabilidad|date:"d/m/Y" }}.
+    La asignación identifica el origen de las bolsas y no vuelve a descontar
+    el inventario general.
+  </p>
+
+  {% if not control_activo %}
+    <p class="alert alert-warning">El control de trazabilidad está inactivo.</p>
+  {% endif %}
+
+  {% for fila in trazabilidad %}
+    <div class="card" style="margin-bottom:18px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;">
+      <h4 style="margin-top:0;">
+        {{ fila.item.producto.nombre }} — {{ fila.item.cantidad }} unidad(es)
+        {% if fila.tiene_pendiente %}
+          <span class="badge" style="background:#fef3c7;color:#92400e;">Pendiente</span>
+        {% else %}
+          <span class="badge" style="background:#d1fae5;color:#065f46;">Completo</span>
+        {% endif %}
+      </h4>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de bolsa</th>
+              <th>Requerido</th>
+              <th>Asignado</th>
+              <th>Pendiente</th>
+              <th>Asignar a contenedor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tipo in fila.tipos %}
+              <tr>
+                <td>{{ tipo.etiqueta }}</td>
+                <td>{{ tipo.requerido }}</td>
+                <td>{{ tipo.asignado }}</td>
+                <td><strong>{{ tipo.pendiente }}</strong></td>
+                <td>
+                  {% if tipo.pendiente > 0 %}
+                    {% if tipo.importaciones %}
+                      <form method="post" action="{% url 'crm:asignar_trazabilidad' %}" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="item_id" value="{{ fila.item.id }}">
+                        <input type="hidden" name="tipo_bolsa" value="{{ tipo.tipo_bolsa }}">
+                        <input type="hidden" name="idempotency_key" value="{{ tipo.form_token }}">
+                        <select name="importacion_id" required>
+                          {% for disponible in tipo.importaciones %}
+                            <option value="{{ disponible.importacion.id }}">
+                              {{ disponible.importacion.fecha|date:"d/m/Y" }} —
+                              {{ disponible.importacion.descripcion|default:"Importación" }}
+                              (saldo {{ disponible.saldo }})
+                            </option>
+                          {% endfor %}
+                        </select>
+                        <input type="number" name="cantidad" min="1" max="{{ tipo.pendiente }}" value="{{ tipo.pendiente }}" style="width:90px;" required>
+                        <button type="submit" class="btn btn-primary">Asignar</button>
+                      </form>
+                    {% else %}
+                      <span class="muted">Sin saldo operativo disponible</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="muted">Sin pendiente</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if fila.movimientos %}
+        <h5>Movimientos registrados</h5>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Movimiento</th>
+                <th>Contenedor</th>
+                <th>Tipo</th>
+                <th>Cantidad</th>
+                <th>Usuario</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for mov in fila.movimientos %}
+                <tr>
+                  <td>{{ mov.creado_en|date:"d/m/Y H:i" }}</td>
+                  <td>{{ mov.get_tipo_movimiento_display }}</td>
+                  <td>{{ mov.importacion.fecha|date:"d/m/Y" }} — {{ mov.importacion.descripcion|default:"Importación" }}</td>
+                  <td>{{ mov.get_tipo_bolsa_display }}</td>
+                  <td>{{ mov.cantidad }}</td>
+                  <td>{{ mov.creado_por|default:"-" }}</td>
+                  <td>
+                    {% if mov.tipo_movimiento != "reversion" %}
+                      <form method="post" action="{% url 'crm:revertir_trazabilidad' mov.id %}" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="venta_id" value="{{ venta.id }}">
+                        <input type="hidden" name="idempotency_key" value="{{ mov.form_token_reversion }}">
+                        <button type="submit" class="btn btn-delete" onclick="return confirm('¿Revertir este movimiento?');">Revertir</button>
+                      </form>
+                      {% if mov.tipo_movimiento == "asignacion" and mov.cantidad > 0 %}
+                        <form method="post" action="{% url 'crm:devolucion_trazabilidad' mov.id %}" class="inline-form" style="margin-top:6px;">
+                          {% csrf_token %}
+                          <input type="hidden" name="venta_id" value="{{ venta.id }}">
+                          <input type="hidden" name="idempotency_key" value="{{ mov.form_token_devolucion }}">
+                          <input type="number" name="cantidad" min="1" max="{{ mov.cantidad }}" value="1" style="width:70px;" required>
+                          <button type="submit" class="btn btn-secondary">Devolver</button>
+                        </form>
+                      {% endif %}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <p>
+    <a class="btn btn-secondary" href="{% url 'crm:contenedores_list' %}">Ver contenedores</a>
+    <a class="btn btn-secondary" href="{% url 'crm:conciliacion_trazabilidad' %}">Conciliar inventario</a>
+  </p>
+{% endif %}
+
+<hr>
+
 <p>
   <strong>Total venta ($):</strong>
   <span style="font-size:1.3em;">
@@ -122,6 +258,19 @@
   <a class="btn btn-secondary" href="{% url 'crm:ventas_list' %}">Volver a ventas</a>
   <a class="btn btn-edit" href="{% url 'crm:venta_editar' venta.id %}">Editar venta</a>
 </p>
+
+{% if trazabilidad %}
+<hr>
+<div class="card" style="margin-top:20px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;">
+  <h3 style="margin-top:0;">Nota: Devolver, revertir o borrar una venta</h3>
+  <ul style="margin-bottom:0;">
+    <li><strong>Revertir:</strong> anula solo un movimiento de trazabilidad. La venta sigue existiendo y el inventario general no cambia.</li>
+    <li><strong>Borrar la venta:</strong> elimina la venta y sus ítems, recalcula el inventario general y afecta reportes y totales. En el CRM, antes de borrar se revierten automáticamente los movimientos de contenedor abiertos.</li>
+    <li><strong>Devolver:</strong> registra una devolución física de bolsas. No elimina la venta ni revierte la venta completa.</li>
+    <li>Usa <strong>revertir</strong> si la venta es válida pero la asignación al contenedor está mal. Usa <strong>borrar venta</strong> solo si la venta completa no debería existir. Evita borrar desde el admin/ORM, porque podría omitir las reversiones automáticas y dejar descuadrado el contenedor.</li>
+  </ul>
+</div>
+{% endif %}
 
 {% endblock %}
 
