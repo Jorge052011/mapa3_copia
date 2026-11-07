@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django import forms
 from django.forms import formset_factory
+from django.db import models
 
 from .models import (
     Cliente,
@@ -10,6 +11,8 @@ from .models import (
     Producto,
     Importacion,
     IngresoMaterial,
+    Material,
+    productos_vendibles_qs,
 )
 from .services_trazabilidad import importaciones_recepcionables
 
@@ -82,9 +85,8 @@ class VentaForm(forms.ModelForm):
 
 
 class VentaItemForm(forms.ModelForm):
-    # ✅ Campo explícito: aquí cargas los productos activos sí o sí
     producto = forms.ModelChoiceField(
-        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        queryset=Producto.objects.none(),
         empty_label="Seleccione producto...",
         required=True,
     )
@@ -95,6 +97,12 @@ class VentaItemForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        productos = productos_vendibles_qs().order_by("nombre")
+        if self.instance and self.instance.pk:
+            productos = Producto.objects.filter(
+                models.Q(pk=self.instance.producto_id) | models.Q(pk__in=productos)
+            ).distinct().order_by("nombre")
+        self.fields["producto"].queryset = productos
         self.fields["item_origen"].required = False
         self.fields["item_origen"].queryset = (
             VentaItem.objects.select_related("venta", "producto")
@@ -121,6 +129,13 @@ class IngresoMaterialForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["importacion"].required = True
         self.fields["importacion"].queryset = importaciones_recepcionables()
+        materiales = Material.objects.filter(activo=True).order_by("nombre")
+        if self.instance and self.instance.pk:
+            materiales = Material.objects.filter(
+                models.Q(codigo=self.instance.tipo_bolsa_id)
+                | models.Q(codigo__in=materiales.values("codigo"))
+            ).order_by("nombre")
+        self.fields["tipo_bolsa"].queryset = materiales
 
 
 class RecepcionMaterialForm(forms.Form):
@@ -151,15 +166,24 @@ class RecepcionMaterialForm(forms.Form):
 
 
 class IngresoLineaForm(forms.Form):
-    tipo_bolsa = forms.ChoiceField(
+    tipo_bolsa = forms.ModelChoiceField(
         label="Tipo de bolsa",
-        choices=IngresoMaterial._meta.get_field("tipo_bolsa").choices,
+        queryset=Material.objects.none(),
+        to_field_name="codigo",
+        empty_label="Seleccione material...",
+        required=False,
     )
     cantidad = forms.IntegerField(
         label="Cantidad",
         min_value=0,
         initial=0,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["tipo_bolsa"].queryset = Material.objects.filter(
+            activo=True
+        ).order_by("nombre")
 
 
 RecepcionLineaFormSet = formset_factory(

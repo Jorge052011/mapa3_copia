@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.db import models
 from django.db.models import Sum, Count, Max
 from .models import (
     Cliente,
@@ -10,6 +11,10 @@ from .models import (
     GastoOperacional,
     ControlTrazabilidad,
     MovimientoBolsasVenta,
+    Material,
+    ProductoMaterial,
+    InventarioBolsasAjuste,
+    productos_vendibles_qs,
 )
 from .services import segmentar_cliente
 from .services_trazabilidad import importaciones_recepcionables
@@ -18,12 +23,35 @@ from .services_trazabilidad import importaciones_recepcionables
 # =========================
 # PRODUCTOS ✅
 # =========================
+class ProductoMaterialInline(admin.TabularInline):
+    model = ProductoMaterial
+    extra = 0
+    fields = ("material", "cantidad")
+    autocomplete_fields = ()
+
+
+@admin.register(Material)
+class MaterialAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "nombre", "peso_kg", "activo")
+    list_filter = ("activo", "peso_kg")
+    search_fields = ("codigo", "nombre")
+    ordering = ("peso_kg", "nombre", "codigo")
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("codigo",) if obj else ()
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
     list_display = ("sku", "nombre", "peso_kg", "precio_sugerido", "activo")
     list_filter = ("activo",)
     search_fields = ("sku", "nombre")
     ordering = ("nombre",)
+    readonly_fields = ("peso_kg",)
+    inlines = [ProductoMaterialInline]
 
 
 # =========================
@@ -117,6 +145,21 @@ class VentaItemAdmin(admin.ModelAdmin):
     search_fields = ("producto__nombre", "producto__sku", "venta__cliente__nombre")
     ordering = ("-id",)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "producto":
+            qs = productos_vendibles_qs().order_by("nombre")
+            obj = getattr(request, "_obj", None)
+            if obj is not None:
+                qs = Producto.objects.filter(
+                    models.Q(pk=obj.producto_id) | models.Q(pk__in=qs)
+                ).distinct().order_by("nombre")
+            kwargs["queryset"] = qs
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_form(self, request, obj=None, **kwargs):
+        request._obj = obj
+        return super().get_form(request, obj, **kwargs)
+
 
 # =========================
 # IMPORTACIONES ✅
@@ -136,6 +179,13 @@ class IngresoMaterialInline(admin.TabularInline):
     )
     readonly_fields = ("creado_por", "creado_en", "recepcion_key")
     can_delete = False
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "tipo_bolsa":
+            # El modelo impide nuevas recepciones con materiales inactivos,
+            # pero permite conservar/editar las históricas.
+            kwargs["queryset"] = Material.objects.order_by("peso_kg", "nombre")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Importacion)
@@ -189,6 +239,24 @@ class IngresoMaterialAdmin(admin.ModelAdmin):
     ordering = ("-fecha", "-id")
     date_hierarchy = "fecha"
     readonly_fields = ("creado_por", "creado_en")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "tipo_bolsa":
+            materiales = Material.objects.filter(activo=True).order_by(
+                "peso_kg", "nombre"
+            )
+            obj = getattr(request, "_obj", None)
+            if obj is not None:
+                materiales = Material.objects.filter(
+                    models.Q(codigo=obj.tipo_bolsa_id)
+                    | models.Q(codigo__in=materiales.values("codigo"))
+                ).order_by("peso_kg", "nombre")
+            kwargs["queryset"] = materiales
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_form(self, request, obj=None, **kwargs):
+        request._obj = obj
+        return super().get_form(request, obj, **kwargs)
 
     def save_model(self, request, obj, form, change):
         if obj.creado_por_id is None:
@@ -257,3 +325,37 @@ class GastoOperacionalAdmin(admin.ModelAdmin):
     list_filter = ("tipo", "aplica_iva")
     search_fields = ("descripcion",)
     ordering = ("-fecha",)
+
+
+@admin.register(InventarioBolsasAjuste)
+class InventarioBolsasAjusteAdmin(admin.ModelAdmin):
+    list_display = (
+        "fecha",
+        "tipo_bolsa",
+        "stock_sistema_before",
+        "stock_fisico",
+        "diferencia",
+        "motivo",
+        "usuario",
+    )
+    list_filter = ("tipo_bolsa", "motivo", "fecha")
+    ordering = ("-fecha", "-id")
+    readonly_fields = (
+        "usuario",
+        "fecha",
+        "tipo_bolsa",
+        "stock_sistema_before",
+        "stock_fisico",
+        "diferencia",
+        "motivo",
+        "observacion",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
