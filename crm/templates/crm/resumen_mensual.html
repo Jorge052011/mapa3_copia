@@ -399,11 +399,65 @@ body {
     padding: 10px 8px;
   }
 }
+
+.costo-input {
+  width: 92px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: right;
+  font-size: 13px;
+  background: #fff;
+}
+
+.costo-input:focus {
+  outline: 2px solid rgba(79, 70, 229, .35);
+  border-color: var(--primary);
+}
+
+.costo-guia {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.costo-manual { color: #047857; font-weight: 700; }
+.costo-auto { color: #b45309; font-weight: 600; }
+
+.costo-hint {
+  margin: 0 0 12px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.costos-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+.alert-success { background: #d1fae5; color: #065f46; }
+.alert-error, .alert-danger { background: #fee2e2; color: #991b1b; }
+.alert-warning { background: #fef3c7; color: #92400e; }
+.alert-info { background: #dbeafe; color: #1e40af; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="resumen-container">
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
 
   <!-- Header -->
   <div class="page-header">
@@ -454,7 +508,7 @@ body {
     <div class="info-item">
       <span class="info-icon">💰</span>
       <div>
-        <div class="info-label">Costo promedio/kg</div>
+        <div class="info-label">Costo promedio/kg (guía)</div>
         <div class="info-value">$ {{ costo_promedio_ponderado|floatformat:0 }}</div>
         {% if costo_minimo != costo_maximo %}
         <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
@@ -469,77 +523,113 @@ body {
     </a>
   </div>
 
-  <!-- Tabla -->
-  <div class="card table-card">
-    <div class="table-wrapper">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Mes</th>
-            <th class="col-center">Ventas</th>
-            <th class="col-right">Kilos</th>
-            <th class="col-right">Ventas brutas con IVA</th>
-            <th class="col-right">Notas crédito con IVA</th>
-            <th class="col-right">Ventas netas con IVA</th>
-            <th class="col-right">Neto real sin IVA</th>
-            <th class="col-right">Costo estimado sin IVA</th>
-            <th class="col-right">Margen bruto sin IVA</th>
-            <th class="col-right">Gastos sin IVA</th>
-            <th class="col-right">Utilidad sin IVA</th>
-          </tr>
-        </thead>
+  <!-- Tabla editable -->
+  <form method="post" action="">
+    {% csrf_token %}
+    <input type="hidden" name="desde" value="{{ desde|date:'Y-m-d' }}">
+    <input type="hidden" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
 
-        <tbody>
-          {% for f in filas %}
-          <tr>
-            <td class="col-mes">{{ f.mes|date:"m-Y" }}</td>
-            <td class="col-center">{{ f.cantidad_ventas }}</td>
-            <td class="col-right">{{ f.kilos|floatformat:0 }}</td>
-            <td class="col-right">$ {{ f.ventas_brutas|floatformat:0 }}</td>
-            <td class="col-right col-negative">$ {{ f.notas_credito|floatformat:0 }}</td>
-            <td class="col-right">$ {{ f.ventas_netas|floatformat:0 }}</td>
-            <td class="col-right col-highlight">$ {{ f.neto|floatformat:0 }}</td>
-            <td class="col-right">
-              <span class="value-badge badge-cost">$ {{ f.costo|floatformat:0 }}</span>
-            </td>
-            <td class="col-right col-highlight col-positive">$ {{ f.margen_bruto|floatformat:0 }}</td>
-            <td class="col-right">
-              <span class="value-badge badge-expense">$ {{ f.gastos|floatformat:0 }}</span>
-            </td>
-            <td class="col-right col-highlight">
-              <span class="value-badge badge-profit">$ {{ f.utilidad|floatformat:0 }}</span>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="11">
-              <div class="empty-state">
-                <strong>Sin datos disponibles</strong>
-                <p>No hay información para el período seleccionado</p>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+    <div class="card table-card">
+      <p class="costo-hint">
+        Ingresa el costo $/kg real de cada mes. Si dejas un mes vacío, la tabla usará
+        como respaldo el promedio calculado (guía).
+      </p>
 
-        <tfoot>
-          <tr>
-            <th>TOTALES</th>
-            <th>—</th>
-            <th class="col-right">{{ totales.kilos|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.neto|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.costo|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.margen_bruto|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.gastos|floatformat:0 }}</th>
-            <th class="col-right">$ {{ totales.utilidad|floatformat:0 }}</th>
-          </tr>
-        </tfoot>
-      </table>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th class="col-center">Ventas</th>
+              <th class="col-right">Kilos</th>
+              <th class="col-right">Costo $/kg<br><small>manual</small></th>
+              <th class="col-right">Ventas brutas con IVA</th>
+              <th class="col-right">Notas crédito con IVA</th>
+              <th class="col-right">Ventas netas con IVA</th>
+              <th class="col-right">Neto real sin IVA</th>
+              <th class="col-right">Costo estimado sin IVA</th>
+              <th class="col-right">Margen bruto sin IVA</th>
+              <th class="col-right">Gastos sin IVA</th>
+              <th class="col-right">Utilidad sin IVA</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for f in filas %}
+            <tr>
+              <td class="col-mes">{{ f.mes|date:"m-Y" }}</td>
+              <td class="col-center">{{ f.cantidad_ventas }}</td>
+              <td class="col-right">{{ f.kilos|floatformat:0 }}</td>
+              <td class="col-right">
+                <input
+                  type="number"
+                  class="costo-input"
+                  name="costo_{{ f.mes|date:'Y-m' }}"
+                  value="{% if f.usa_costo_manual %}{{ f.costo_kg_manual|floatformat:'2u' }}{% endif %}"
+                  step="0.01"
+                  min="0"
+                  placeholder="{{ f.costo_kg_calculado|floatformat:'0u' }}"
+                >
+                <div class="costo-guia">
+                  guía: ${{ f.costo_kg_calculado|floatformat:0 }}
+                  {% if f.usa_costo_manual %}
+                    · <span class="costo-manual">manual</span>
+                  {% else %}
+                    · <span class="costo-auto">auto</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="col-right">$ {{ f.ventas_brutas|floatformat:0 }}</td>
+              <td class="col-right col-negative">$ {{ f.notas_credito|floatformat:0 }}</td>
+              <td class="col-right">$ {{ f.ventas_netas|floatformat:0 }}</td>
+              <td class="col-right col-highlight">$ {{ f.neto|floatformat:0 }}</td>
+              <td class="col-right">
+                <span class="value-badge badge-cost">$ {{ f.costo|floatformat:0 }}</span>
+              </td>
+              <td class="col-right col-highlight col-positive">$ {{ f.margen_bruto|floatformat:0 }}</td>
+              <td class="col-right">
+                <span class="value-badge badge-expense">$ {{ f.gastos|floatformat:0 }}</span>
+              </td>
+              <td class="col-right col-highlight">
+                <span class="value-badge badge-profit">$ {{ f.utilidad|floatformat:0 }}</span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="12">
+                <div class="empty-state">
+                  <strong>Sin datos disponibles</strong>
+                  <p>No hay información para el período seleccionado</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <th>TOTALES</th>
+              <th>—</th>
+              <th class="col-right">{{ totales.kilos|floatformat:0 }}</th>
+              <th>—</th>
+              <th class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.neto|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.costo|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.margen_bruto|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.gastos|floatformat:0 }}</th>
+              <th class="col-right">$ {{ totales.utilidad|floatformat:0 }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="costos-actions">
+        <button type="submit" class="btn btn-primary">💾 Guardar costos mensuales</button>
+      </div>
     </div>
-  </div>
+  </form>
 
 </div>
 {% endblock %}

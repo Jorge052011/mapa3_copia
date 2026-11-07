@@ -1,5 +1,5 @@
 # crm/views.py
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import timedelta, date
 from dateutil.relativedelta import relativedelta
 import json
@@ -17,6 +17,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce, TruncMonth, TruncDate
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
@@ -24,7 +25,7 @@ from django.views.decorators.http import require_POST
 from .models import (
     Cliente, Venta, VentaItem, Producto, Importacion, IngresoMaterial,
     GastoOperacional, InventarioBolsasAjuste, DepositoEdicion, Deposito,
-    MovimientoBolsasVenta, Material, productos_vendibles_qs,
+    MovimientoBolsasVenta, Material, productos_vendibles_qs, CostoMensual,
 )
 from .constants import MOTIVOS_AJUSTE
 from .forms import (
@@ -772,8 +773,8 @@ def resumen_mensual(request):
     default_desde = inicio_mes - relativedelta(months=12)
     default_hasta = hoy
 
-    desde_str = (request.GET.get("desde") or "").strip()
-    hasta_str = (request.GET.get("hasta") or "").strip()
+    desde_str = (request.GET.get("desde") or request.POST.get("desde") or "").strip()
+    hasta_str = (request.GET.get("hasta") or request.POST.get("hasta") or "").strip()
 
     desde = parse_date(desde_str) if desde_str else default_desde
     hasta = parse_date(hasta_str) if hasta_str else default_hasta
@@ -784,6 +785,149 @@ def resumen_mensual(request):
         hasta = default_hasta
     if desde > hasta:
         desde, hasta = hasta, desde
+
+    ventas_qs = (
+        Venta.objects
+        .filter(fecha__date__gte=desde, fecha__date__lte=hasta)
+        .annotate(mes=TruncMonth("fecha", output_field=DateField()))
+        .values("mes")
+        .annotate(
+            kilos=Coalesce(
+                Sum("kilos_total"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            ventas_brutas=Coalesce(
+                Sum("monto_total", filter=~Q(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            notas_credito=Coalesce(
+                Sum("monto_total", filter=Q(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            cantidad_ventas=Count("id"),
+        )
+        .order_by("-mes")
+    )
+    meses_validos = {r["mes"] for r in ventas_qs}
+
+    # ─────────────────────────────────────────────────────────────────
+    # Guardar costos mensuales manuales (POST desde la misma página)
+    # ─────────────────────────────────────────────────────────────────
+    if request.method == "POST":
+        cambios = 0
+        campo_costo = CostoMensual._meta.get_field("costo_por_kg")
+        maximo_costo = (
+            Decimal(10) ** (campo_costo.max_digits - campo_costo.decimal_places)
+            - Decimal("1").scaleb(-campo_costo.decimal_places)
+        )
+
+        for key, value in request.POST.items():
+            if not key.startswith("costo_"):
+                continue
+            mes_str = key[len("costo_"):].strip()
+            valor = (value or "").strip()
+
+            try:
+                anio, numero_mes = mes_str.split("-")
+                mes_costo = date(int(anio), int(numero_mes), 1)
+            except (ValueError, TypeError):
+                messages.error(
+                    request,
+                    f"Valor inválido para el costo del mes {mes_str}.",
+                )
+                continue
+
+            if mes_costo not in meses_validos:
+                messages.error(
+                    request,
+                    f"El mes {mes_str} no aparece en la tabla del período seleccionado.",
+                )
+                continue
+
+            if not valor:
+                # Vaciar el campo revierte el mes al costo calculado (guía).
+                borrados, _ = CostoMensual.objects.filter(mes=mes_costo).delete()
+                if borrados:
+                    cambios += 1
+                continue
+
+            try:
+                costo_original = Decimal(valor.replace(",", "."))
+            except InvalidOperation:
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} no es un número válido.",
+                )
+                continue
+
+            if not costo_original.is_finite():
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} debe ser un número finito.",
+                )
+                continue
+
+            if costo_original < 0:
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} no puede ser negativo.",
+                )
+                continue
+
+            try:
+                costo_manual = costo_original.quantize(Decimal("0.01"))
+            except InvalidOperation:
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} está fuera del rango permitido.",
+                )
+                continue
+
+            if costo_manual != costo_original:
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} no puede tener más de dos decimales.",
+                )
+                continue
+
+            if costo_manual > maximo_costo:
+                messages.error(
+                    request,
+                    f"El costo del mes {mes_str} no puede superar {maximo_costo}.",
+                )
+                continue
+
+            try:
+                CostoMensual.objects.update_or_create(
+                    mes=mes_costo,
+                    defaults={
+                        "costo_por_kg": costo_manual,
+                        "actualizado_por": (
+                            request.user if request.user.is_authenticated else None
+                        ),
+                    },
+                )
+            except ValidationError as exc:
+                detalle = " ".join(exc.messages) or "datos inválidos."
+                messages.error(
+                    request,
+                    f"No se pudo guardar el costo del mes {mes_str}: {detalle}",
+                )
+                continue
+            cambios += 1
+
+        if cambios:
+            messages.success(
+                request,
+                f"Se guardaron {cambios} cambio(s) de costo mensual.",
+            )
+
+        url = reverse("crm:resumen_mensual")
+        query = f"desde={desde.isoformat()}&hasta={hasta.isoformat()}"
+        return redirect(f"{url}?{query}")
 
     # ─────────────────────────────────────────────────────────────────
     # Costo promedio ponderado POR MES
@@ -827,32 +971,6 @@ def resumen_mensual(request):
     imp_activa = Importacion.objects.filter(activo=True).order_by("-fecha").first()
     costo_por_kg = imp_activa.costo_por_kg if imp_activa else Decimal("0")
 
-    ventas_qs = (
-        Venta.objects
-        .filter(fecha__date__gte=desde, fecha__date__lte=hasta)
-        .annotate(mes=TruncMonth("fecha", output_field=DateField()))
-        .values("mes")
-        .annotate(
-            kilos=Coalesce(
-                Sum("kilos_total"),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
-            ventas_brutas=Coalesce(
-                Sum("monto_total", filter=~Q(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
-            notas_credito=Coalesce(
-                Sum("monto_total", filter=Q(tipo_documento=Venta.TipoDocumento.NOTA_CREDITO)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
-            cantidad_ventas=Count("id"),
-        )
-        .order_by("-mes")
-    )
-
     gastos_qs = (
         GastoOperacional.objects
         .filter(fecha__gte=desde, fecha__lte=hasta)
@@ -869,6 +987,14 @@ def resumen_mensual(request):
 
     gastos_map = {r["mes"]: (r["gastos"] or Decimal("0")) for r in gastos_qs}
 
+    costos_manuales_map = {
+        c.mes: c.costo_por_kg
+        for c in CostoMensual.objects.filter(
+            mes__gte=desde.replace(day=1),
+            mes__lte=hasta.replace(day=1),
+        )
+    }
+
     filas = []
     for r in ventas_qs:
         mes = r["mes"]
@@ -879,7 +1005,11 @@ def resumen_mensual(request):
         ventas_netas = bruto - notas
         neto_real = (ventas_netas / Decimal("1.19")).quantize(Decimal("0.01"))
 
-        costo_kg_mes = costo_promedio_para_mes(mes)
+        costo_kg_calculado = costo_promedio_para_mes(mes)
+        costo_kg_manual = costos_manuales_map.get(mes)
+        costo_kg_mes = (
+            costo_kg_manual if costo_kg_manual is not None else costo_kg_calculado
+        )
         costo = (kilos * costo_kg_mes).quantize(Decimal("0.01"))
         margen_bruto = neto_real - costo
 
@@ -896,6 +1026,10 @@ def resumen_mensual(request):
             "cantidad_ventas": r["cantidad_ventas"],
             "costo": costo,
             "costo_kg_mes": costo_kg_mes,
+            "costo_kg_calculado": costo_kg_calculado,
+            "costo_kg_manual": costo_kg_manual,
+            "costo_kg_usado": costo_kg_mes,
+            "usa_costo_manual": costo_kg_manual is not None,
             "margen_bruto": margen_bruto,
             "gastos": gastos,
             "utilidad": utilidad,

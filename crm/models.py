@@ -1036,3 +1036,52 @@ class DepositoEdicion(models.Model):
 
     def __str__(self):
         return f"Edición del depósito #{self.deposito_id} - {self.fecha:%d/%m/%Y %H:%M}"
+
+
+class CostoMensual(models.Model):
+    """Costo manual por kg de material para un mes específico."""
+
+    mes = models.DateField(
+        unique=True,
+        verbose_name="Mes",
+        help_text="Se normaliza siempre al primer día del mes.",
+    )
+    costo_por_kg = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+        verbose_name="Costo por kg (sin IVA)",
+    )
+    observacion = models.CharField(max_length=200, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="costos_mensuales_actualizados",
+        verbose_name="Actualizado por",
+    )
+
+    class Meta:
+        ordering = ["-mes"]
+        verbose_name = "Costo mensual"
+        verbose_name_plural = "Costos mensuales"
+
+    def __str__(self):
+        return f"{self.mes:%m-%Y}: ${self.costo_por_kg}/kg"
+
+    def clean(self):
+        super().clean()
+        if self.mes:
+            self.mes = self.mes.replace(day=1)
+        if self.costo_por_kg is not None and self.costo_por_kg < 0:
+            raise ValidationError(
+                {"costo_por_kg": "El costo por kg no puede ser negativo."}
+            )
+
+    def save(self, *args, **kwargs):
+        if self.mes:
+            self.mes = self.mes.replace(day=1)
+        self.full_clean()
+        super().save(*args, **kwargs)

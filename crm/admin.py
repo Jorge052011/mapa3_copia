@@ -14,6 +14,7 @@ from .models import (
     Material,
     ProductoMaterial,
     InventarioBolsasAjuste,
+    CostoMensual,
     productos_vendibles_qs,
 )
 from .services import segmentar_cliente
@@ -359,3 +360,10 @@ class InventarioBolsasAjusteAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(CostoMensual)
+class CostoMensualAdmin(admin.ModelAdmin):
+    list_display = ("mes", "costo_por_kg", "actualizado_en", "actualizado_por")
+    ordering = ("-mes",)
+    readonly_fields = ("actualizado_en",)

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from uuid import uuid4
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -13,6 +14,8 @@ from django.utils import timezone
 from .forms import IngresoMaterialForm, VentaItemForm
 from .models import (
     Cliente,
+    CostoMensual,
+    GastoOperacional,
     Importacion,
     IngresoMaterial,
     InventarioBolsasAjuste,
@@ -52,6 +55,243 @@ class ClienteTestCase(TestCase):
     def test_segmento_nuevo(self):
         cliente = Cliente.objects.create(nombre="Nuevo")
         self.assertEqual(cliente.segmento, "Ocasional")
+
+
+class CostoMensualTestCase(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="costos_tester",
+            password="test-pass",
+        )
+        self.cliente = Cliente.objects.create(nombre="Cliente costos")
+        self.importacion = Importacion.objects.create(
+            fecha=date(2025, 12, 1),
+            descripcion="Contenedor costos",
+            kilos_ingresados=Decimal("1000.00"),
+            merma_kg=Decimal("0.00"),
+            costo_total=Decimal("1000.00"),
+        )
+        self.venta = Venta.objects.create(
+            cliente=self.cliente,
+            fecha=timezone.make_aware(
+                datetime(2026, 1, 15, 12, 0, 0),
+                timezone.get_current_timezone(),
+            ),
+            kilos_total=Decimal("100.00"),
+            monto_total=Decimal("1190.00"),
+        )
+        self.client.force_login(self.user)
+
+    def _get_filas(self):
+        response = self.client.get(
+            reverse("crm:resumen_mensual"),
+            {"desde": "2026-01-01", "hasta": "2026-01-31"},
+        )
+        self.assertEqual(response.status_code, 200)
+        return response, response.context["filas"]
+
+    def test_mes_sin_costo_manual_usa_calculado(self):
+        response, filas = self._get_filas()
+
+        self.assertEqual(len(filas), 1)
+        fila = filas[0]
+        self.assertEqual(fila["costo_kg_calculado"], Decimal("1.00"))
+        self.assertIsNone(fila["costo_kg_manual"])
+        self.assertEqual(fila["costo_kg_usado"], Decimal("1.00"))
+        self.assertEqual(fila["costo"], Decimal("100.00"))
+        self.assertContains(response, "Costo promedio/kg (guía)")
+
+    def test_costo_manual_reemplaza_al_calculado(self):
+        CostoMensual.objects.create(
+            mes=date(2026, 1, 1),
+            costo_por_kg=Decimal("2.50"),
+        )
+
+        response, filas = self._get_filas()
+        fila = filas[0]
+
+        self.assertEqual(fila["costo_kg_calculado"], Decimal("1.00"))
+        self.assertEqual(fila["costo_kg_manual"], Decimal("2.50"))
+        self.assertEqual(fila["costo_kg_usado"], Decimal("2.50"))
+        self.assertEqual(fila["costo"], Decimal("250.00"))
+        self.assertTrue(fila["usa_costo_manual"])
+        self.assertContains(response, 'value="2.50"')
+
+    def test_post_crea_costo_y_redirige_con_filtros(self):
+        url = reverse("crm:resumen_mensual")
+        response = self.client.post(
+            f"{url}?desde=2026-01-01&hasta=2026-01-31",
+            {"costo_2026-01": "3.75"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("desde=2026-01-01", response.url)
+        self.assertIn("hasta=2026-01-31", response.url)
+
+        costo = CostoMensual.objects.get(mes=date(2026, 1, 1))
+        self.assertEqual(costo.costo_por_kg, Decimal("3.75"))
+        self.assertEqual(costo.actualizado_por, self.user)
+
+    def test_post_actualiza_sin_duplicar(self):
+        CostoMensual.objects.create(
+            mes=date(2026, 1, 1),
+            costo_por_kg=Decimal("2.00"),
+        )
+
+        self.client.post(
+            f"{reverse('crm:resumen_mensual')}?desde=2026-01-01&hasta=2026-01-31",
+            {"costo_2026-01": "4.50"},
+        )
+
+        self.assertEqual(
+            CostoMensual.objects.filter(mes=date(2026, 1, 1)).count(),
+            1,
+        )
+        self.assertEqual(
+            CostoMensual.objects.get(mes=date(2026, 1, 1)).costo_por_kg,
+            Decimal("4.50"),
+        )
+
+    def test_post_vacio_revierte_al_calculado(self):
+        CostoMensual.objects.create(
+            mes=date(2026, 1, 1),
+            costo_por_kg=Decimal("2.00"),
+        )
+
+        self.client.post(
+            f"{reverse('crm:resumen_mensual')}?desde=2026-01-01&hasta=2026-01-31",
+            {"costo_2026-01": ""},
+        )
+
+        self.assertFalse(
+            CostoMensual.objects.filter(mes=date(2026, 1, 1)).exists()
+        )
+
+    def test_totales_con_costo_manual(self):
+        CostoMensual.objects.create(
+            mes=date(2026, 1, 1),
+            costo_por_kg=Decimal("2.50"),
+        )
+        GastoOperacional.objects.create(
+            fecha=date(2026, 1, 20),
+            tipo=GastoOperacional.Tipo.OTRO,
+            monto_neto=Decimal("50.00"),
+        )
+
+        response, _ = self._get_filas()
+        totales = response.context["totales"]
+
+        self.assertEqual(totales["costo"], Decimal("250.00"))
+        self.assertEqual(totales["margen_bruto"], Decimal("750.00"))
+        self.assertEqual(totales["gastos"], Decimal("50.00"))
+        self.assertEqual(totales["utilidad"], Decimal("700.00"))
+
+    def _post_costo(self, valor, mes="2026-01"):
+        return self.client.post(
+            f"{reverse('crm:resumen_mensual')}?desde=2026-01-01&hasta=2026-01-31",
+            {f"costo_{mes}": valor},
+            follow=True,
+        )
+
+    def test_post_rechaza_nan_e_infinity(self):
+        for valor in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(valor=valor):
+                response = self._post_costo(valor)
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(
+                    CostoMensual.objects.filter(mes=date(2026, 1, 1)).exists()
+                )
+                self.assertContains(response, "número finito")
+
+    def test_post_rechaza_negativo(self):
+        response = self._post_costo("-1.00")
+
+        self.assertFalse(
+            CostoMensual.objects.filter(mes=date(2026, 1, 1)).exists()
+        )
+        self.assertContains(response, "no puede ser negativo")
+
+    def test_post_rechaza_precision_y_magnitud_fuera_de_rango(self):
+        casos = (
+            ("abc", "no es un número válido"),
+            ("1.234", "dos decimales"),
+            ("0.001", "dos decimales"),
+            ("9999999999.999", "dos decimales"),
+            ("10000000000", "no puede superar"),
+            ("1E+100", "fuera del rango"),
+        )
+        for valor, mensaje in casos:
+            with self.subTest(valor=valor):
+                response = self._post_costo(valor)
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(
+                    CostoMensual.objects.filter(mes=date(2026, 1, 1)).exists()
+                )
+                self.assertContains(response, mensaje)
+
+    def test_post_captura_error_de_validacion_del_modelo(self):
+        with patch.object(
+            CostoMensual,
+            "save",
+            side_effect=ValidationError(["El costo no es válido."]),
+        ):
+            response = self._post_costo("2.00")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CostoMensual.objects.filter(mes=date(2026, 1, 1)).exists()
+        )
+        self.assertContains(
+            response,
+            "No se pudo guardar el costo del mes 2026-01",
+        )
+        self.assertContains(response, "El costo no es válido.")
+
+    def test_post_rechaza_mes_que_no_aparece_en_la_tabla(self):
+        response = self.client.post(
+            f"{reverse('crm:resumen_mensual')}?desde=2026-01-01&hasta=2026-01-31",
+            {"costo_2025-01": "2.00", "costo_2026-01": "3.00"},
+            follow=True,
+        )
+
+        self.assertContains(response, "no aparece en la tabla")
+        self.assertEqual(CostoMensual.objects.count(), 1)
+        costo = CostoMensual.objects.get()
+        self.assertEqual(costo.mes, date(2026, 1, 1))
+        self.assertEqual(costo.costo_por_kg, Decimal("3.00"))
+
+    def test_post_vacio_no_elimina_mes_fuera_de_tabla(self):
+        CostoMensual.objects.create(
+            mes=date(2025, 1, 1),
+            costo_por_kg=Decimal("9.00"),
+        )
+
+        response = self.client.post(
+            f"{reverse('crm:resumen_mensual')}?desde=2026-01-01&hasta=2026-01-31",
+            {"costo_2025-01": ""},
+            follow=True,
+        )
+
+        self.assertContains(response, "no aparece en la tabla")
+        self.assertTrue(
+            CostoMensual.objects.filter(mes=date(2025, 1, 1)).exists()
+        )
+
+    def test_mes_se_normaliza_al_primer_dia(self):
+        costo = CostoMensual.objects.create(
+            mes=date(2026, 1, 20),
+            costo_por_kg=Decimal("1.00"),
+        )
+        costo.refresh_from_db()
+
+        self.assertEqual(costo.mes, date(2026, 1, 1))
+
+    def test_costo_negativo_es_invalido(self):
+        with self.assertRaises(ValidationError):
+            CostoMensual(
+                mes=date(2026, 1, 1),
+                costo_por_kg=Decimal("-1.00"),
+            ).save()
 
 
 class TrazabilidadBaseTestCase(TestCase):
