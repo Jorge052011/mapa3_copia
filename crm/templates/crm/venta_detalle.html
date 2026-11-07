@@ -192,7 +192,7 @@
                   <td>{{ mov.creado_en|date:"d/m/Y H:i" }}</td>
                   <td>{{ mov.get_tipo_movimiento_display }}</td>
                   <td>{{ mov.importacion.fecha|date:"d/m/Y" }} — {{ mov.importacion.descripcion|default:"Importación" }}</td>
-                  <td>{{ mov.get_tipo_bolsa_display }}</td>
+                  <td>{{ mov.tipo_bolsa.nombre }}</td>
                   <td>{{ mov.cantidad }}</td>
                   <td>{{ mov.creado_por|default:"-" }}</td>
                   <td>

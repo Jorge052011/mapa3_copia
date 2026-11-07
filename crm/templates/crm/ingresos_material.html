@@ -125,7 +125,7 @@
               <tr>
                 <td>{{ ingreso.fecha|date:"d/m/Y" }}</td>
                 <td>{{ ingreso.importacion.descripcion|default:"Saldo inicial" }}</td>
-                <td>{{ ingreso.get_tipo_bolsa_display }}</td>
+                <td>{{ ingreso.tipo_bolsa.nombre }}</td>
                 <td><strong>{{ ingreso.cantidad }}</strong></td>
                 <td>{% if ingreso.control_contenedor %}Sí{% else %}Histórico{% endif %}</td>
                 <td>{{ ingreso.recepcion_key|default:"-" }}</td>

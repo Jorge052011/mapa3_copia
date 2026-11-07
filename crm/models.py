@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
-from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
+from .constants import MOTIVOS_AJUSTE
 
 
 class Cliente(models.Model):
@@ -48,7 +48,14 @@ class Cliente(models.Model):
 class Producto(models.Model):
     sku = models.CharField(max_length=40, unique=True)
     nombre = models.CharField(max_length=140)
-    peso_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    peso_kg = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Peso calculado desde la receta de materiales.",
+    )
 
     precio_sugerido = models.DecimalField(
         max_digits=12,
@@ -71,6 +78,138 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.nombre} [{self.sku}]"
+
+    def recalcular_peso(self, guardar=True):
+        """Recalcula el peso desde la receta y lo mantiene como caché."""
+        from django.db.models import F, Sum, DecimalField, ExpressionWrapper
+
+        if not self.pk:
+            return None
+
+        expresion = ExpressionWrapper(
+            F("cantidad") * F("material__peso_kg"),
+            output_field=DecimalField(max_digits=12, decimal_places=4),
+        )
+        total = self.componentes.aggregate(total=Sum(expresion))["total"]
+        nuevo = (
+            total.quantize(Decimal("0.01")) if total is not None else None
+        )
+        self.peso_kg = nuevo
+        if guardar and nuevo != Producto.objects.filter(pk=self.pk).values_list(
+            "peso_kg", flat=True
+        ).first():
+            self.save(update_fields=["peso_kg"])
+        return nuevo
+
+
+class Material(models.Model):
+    """Insumo físico (bolsa) que compone los productos."""
+
+    codigo = models.CharField(max_length=20, unique=True, verbose_name="Código")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    peso_kg = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        verbose_name="Peso por bolsa (kg)",
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        ordering = ["nombre", "codigo"]
+        verbose_name = "Material"
+        verbose_name_plural = "Materiales"
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(peso_kg__gt=0),
+                name="material_peso_kg_positivo",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.peso_kg:g} kg)"
+
+    def clean(self):
+        super().clean()
+        if self.peso_kg is not None and self.peso_kg <= 0:
+            raise ValidationError(
+                {"peso_kg": "El peso por bolsa debe ser mayor a 0."}
+            )
+        if self.pk:
+            anterior = Material.objects.filter(pk=self.pk).values_list(
+                "codigo", flat=True
+            ).first()
+            if anterior is not None and anterior != self.codigo:
+                raise ValidationError(
+                    {"codigo": "El código de un material no se puede modificar."}
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ProductoMaterial(models.Model):
+    """Receta: cantidad de bolsas de un material que usa cada producto."""
+
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name="componentes",
+    )
+    material = models.ForeignKey(
+        Material,
+        to_field="codigo",
+        db_column="material_codigo",
+        on_delete=models.PROTECT,
+        related_name="productos",
+    )
+    cantidad = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Cantidad de bolsas de este material por producto.",
+    )
+
+    class Meta:
+        ordering = ["producto", "material"]
+        verbose_name = "Material del producto"
+        verbose_name_plural = "Materiales del producto"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["producto", "material"],
+                name="uniq_producto_material",
+            ),
+            models.CheckConstraint(
+                check=models.Q(cantidad__gte=1),
+                name="pm_cantidad_min_1",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.producto.sku}: {self.cantidad} x {self.material.codigo}"
+
+    def clean(self):
+        super().clean()
+        if self.cantidad is not None and self.cantidad < 1:
+            raise ValidationError(
+                {"cantidad": "La cantidad debe ser al menos 1."}
+            )
+        if self.material_id and not self.pk and not self.material.activo:
+            raise ValidationError(
+                {"material": "No se pueden agregar materiales inactivos a una receta."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+def productos_vendibles_qs():
+    """Productos activos, con receta y todos sus materiales activos."""
+    return (
+        Producto.objects.filter(activo=True, peso_kg__gt=0)
+        .filter(componentes__isnull=False)
+        .exclude(componentes__material__activo=False)
+        .distinct()
+    )
 
 
 class Venta(models.Model):
@@ -316,6 +455,37 @@ class VentaItem(models.Model):
     def subtotal(self):
         return self.cantidad * self.precio_unitario
 
+    def clean(self):
+        super().clean()
+        if not self._state.adding:
+            return
+        producto = self.producto
+        if producto is None:
+            raise ValidationError({"producto": "Debe seleccionar un producto."})
+        if not producto.activo:
+            raise ValidationError({"producto": "El producto está inactivo."})
+        componentes = list(producto.componentes.select_related("material"))
+        if not componentes:
+            raise ValidationError(
+                {"producto": "El producto no tiene una receta de bolsas definida."}
+            )
+        inactivos = [
+            c.material.codigo for c in componentes if not c.material.activo
+        ]
+        if inactivos:
+            raise ValidationError(
+                {"producto": "La receta usa materiales inactivos: " + ", ".join(inactivos)}
+            )
+        if producto.peso_kg is None or producto.peso_kg <= 0:
+            raise ValidationError(
+                {"producto": "El producto no tiene un peso calculado válido."}
+            )
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class Importacion(models.Model):
     fecha = models.DateField(default=timezone.localdate)
@@ -446,7 +616,14 @@ class IngresoMaterial(models.Model):
         verbose_name="Importación",
         help_text="Obligatoria para ingresos nuevos.",
     )
-    tipo_bolsa = models.CharField(max_length=20, choices=TIPOS_BOLSA)
+    tipo_bolsa = models.ForeignKey(
+        Material,
+        to_field="codigo",
+        db_column="tipo_bolsa",
+        on_delete=models.PROTECT,
+        related_name="ingresos_material",
+        verbose_name="Tipo de bolsa",
+    )
     cantidad = models.PositiveIntegerField(
         validators=[MinValueValidator(1)],
         help_text="Cantidad de bolsas recibidas (mayor a 0).",
@@ -492,7 +669,7 @@ class IngresoMaterial(models.Model):
 
     def __str__(self):
         return (
-            f"{self.fecha} - {self.get_tipo_bolsa_display()} "
+            f"{self.fecha} - {self.tipo_bolsa.nombre} "
             f"({self.cantidad} bolsas)"
         )
 
@@ -502,6 +679,11 @@ class IngresoMaterial(models.Model):
         if self.cantidad is not None and self.cantidad <= 0:
             raise ValidationError({
                 "cantidad": "La cantidad debe ser mayor a 0."
+            })
+
+        if not self.pk and self.tipo_bolsa_id and not self.tipo_bolsa.activo:
+            raise ValidationError({
+                "tipo_bolsa": "No se puede recibir un material inactivo."
             })
 
         if self.control_contenedor and self.importacion_id is None:
@@ -603,7 +785,14 @@ class MovimientoBolsasVenta(models.Model):
         on_delete=models.PROTECT,
         related_name="movimientos_bolsas",
     )
-    tipo_bolsa = models.CharField(max_length=20, choices=TIPOS_BOLSA)
+    tipo_bolsa = models.ForeignKey(
+        Material,
+        to_field="codigo",
+        db_column="tipo_bolsa",
+        on_delete=models.PROTECT,
+        related_name="movimientos_venta",
+        verbose_name="Tipo de bolsa",
+    )
     cantidad = models.IntegerField(
         help_text="Positiva para asignaciones; negativa para devoluciones o reversiones."
     )
@@ -654,7 +843,7 @@ class MovimientoBolsasVenta(models.Model):
     def __str__(self):
         return (
             f"{self.get_tipo_movimiento_display()} {self.cantidad:+d} "
-            f"{self.get_tipo_bolsa_display()} - {self.importacion}"
+            f"{self.tipo_bolsa.nombre} - {self.importacion}"
         )
 
     def clean(self):
@@ -738,9 +927,13 @@ class InventarioBolsasAjuste(models.Model):
 
     fecha = models.DateTimeField(auto_now_add=True)
 
-    tipo_bolsa = models.CharField(
-        max_length=20,
-        choices=TIPOS_BOLSA,
+    tipo_bolsa = models.ForeignKey(
+        Material,
+        to_field="codigo",
+        db_column="tipo_bolsa",
+        on_delete=models.PROTECT,
+        related_name="ajustes_inventario",
+        verbose_name="Tipo de bolsa",
     )
 
     stock_sistema_before = models.IntegerField(
@@ -766,7 +959,7 @@ class InventarioBolsasAjuste(models.Model):
         verbose_name_plural = "Ajustes Inventario Bolsas"
 
     def __str__(self):
-        return f"{self.get_tipo_bolsa_display()} | {self.fecha:%d/%m/%Y} | S:{self.stock_sistema_before} F:{self.stock_fisico} A:{self.diferencia}"
+        return f"{self.tipo_bolsa.nombre} | {self.fecha:%d/%m/%Y} | S:{self.stock_sistema_before} F:{self.stock_fisico} A:{self.diferencia}"
 
     def save(self, *args, **kwargs):
         self.diferencia = self.stock_fisico - self.stock_sistema_before

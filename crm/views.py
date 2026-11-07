@@ -24,9 +24,9 @@ from django.views.decorators.http import require_POST
 from .models import (
     Cliente, Venta, VentaItem, Producto, Importacion, IngresoMaterial,
     GastoOperacional, InventarioBolsasAjuste, DepositoEdicion, Deposito,
-    MovimientoBolsasVenta,
+    MovimientoBolsasVenta, Material, productos_vendibles_qs,
 )
-from .constants import TIPOS_BOLSA, MOTIVOS_AJUSTE
+from .constants import MOTIVOS_AJUSTE
 from .forms import (
     ClienteForm, VentaForm, VentaItemForm, IngresoMaterialForm,
     RecepcionMaterialForm, RecepcionLineaFormSet,
@@ -390,7 +390,7 @@ def venta_detalle(request, venta_id):
     items = venta.items.select_related("producto").all().order_by("id")
     form_item = VentaItemForm()
 
-    productos = Producto.objects.filter(activo=True).order_by("nombre")
+    productos = productos_vendibles_qs().order_by("nombre")
 
     trazabilidad = []
     if (
@@ -1076,11 +1076,14 @@ def consumo_bolsas_view(request):
     data = consumo_bolsas(desde=desde, hasta=hasta)
     data_stock = inventario_bolsas_actual()
 
-    for key in ["stock_actual_8_lav", "stock_actual_20_lav", "stock_actual_8_carbon",
-                "stock_actual_20_carbon", "stock_actual_20_talco", "stock_actual_20_cafe",
-                "stock_actual_8", "stock_actual_20"]:
-        if key in data_stock:
-            data[key] = data_stock[key]
+    for key, value in data_stock.items():
+        if key.startswith("stock_actual_"):
+            data[key] = value
+    for material in data["materiales"]:
+        codigo = material["codigo"]
+        material["stock_actual"] = data_stock.get(
+            f"stock_actual_{codigo}", material["stock_actual"]
+        )
 
     return render(request, "crm/consumo_bolsas.html", {
         "data": data,
@@ -1093,31 +1096,32 @@ def consumo_bolsas_view(request):
 def ajustar_inventario(request):
     """Vista para ajuste manual de inventario de bolsas."""
 
-    TIPOS_BOLSA_DICT = {
-        "8_lav": "Lavanda 8 kg",
-        "20_lav": "Lavanda 20 kg",
-        "8_carbon": "Carbón 8 kg",
-        "20_carbon": "Carbón 20 kg",
-        "20_talco": "Talco 20 kg",
-        "20_cafe": "Café 20 kg",
-    }
+    from .services_inventario import inventario_bolsas_actual
+
+    materiales_activos = list(
+        Material.objects.filter(activo=True).order_by("peso_kg", "nombre", "codigo")
+    )
+    if not materiales_activos:
+        messages.error(request, "No hay materiales activos para ajustar.")
+        return redirect("crm:consumo_bolsas")
 
     if request.method == "POST":
-        tipo_bolsa = request.POST.get("tipo_bolsa")
+        codigo = request.POST.get("tipo_bolsa")
         stock_fisico = request.POST.get("stock_fisico")
         motivo = request.POST.get("motivo")
         observacion = request.POST.get("observacion", "").strip()
 
-        # Validaciones que NO necesitan consultar inventario
-        if tipo_bolsa not in TIPOS_BOLSA_DICT:
-            messages.error(request, "Tipo de bolsa inválido.")
+        material = next(
+            (m for m in materiales_activos if m.codigo == codigo), None
+        )
+        if material is None:
+            messages.error(request, "Tipo de bolsa inválido o inactivo.")
             return redirect("crm:consumo_bolsas")
 
         if motivo not in dict(MOTIVOS_AJUSTE).keys():
             messages.error(request, "Motivo inválido.")
             return redirect("crm:consumo_bolsas")
 
-        # Validar stock_fisico entero >= 0
         try:
             stock_fisico = int(stock_fisico)
             if stock_fisico < 0:
@@ -1127,24 +1131,11 @@ def ajustar_inventario(request):
             messages.error(request, "Stock físico debe ser un entero válido.")
             return redirect("crm:consumo_bolsas")
 
-        # Cálculo y creación dentro de transacción atómica
-        from .services_inventario import inventario_bolsas_actual
         with transaction.atomic():
             data = inventario_bolsas_actual()
-
-            stocks_calculados = {
-                "8_lav": data["stock_actual_8_lav"],
-                "20_lav": data["stock_actual_20_lav"],
-                "8_carbon": data["stock_actual_8_carbon"],
-                "20_carbon": data["stock_actual_20_carbon"],
-                "20_talco": data["stock_actual_20_talco"],
-                "20_cafe": data["stock_actual_20_cafe"],
-            }
-
-            stock_sistema_before = stocks_calculados[tipo_bolsa]
+            stock_sistema_before = data.get(f"stock_actual_{codigo}", 0)
             diferencia = stock_fisico - stock_sistema_before
 
-            # No crear ajuste si diferencia es 0
             if diferencia == 0:
                 messages.info(
                     request,
@@ -1154,7 +1145,7 @@ def ajustar_inventario(request):
 
             InventarioBolsasAjuste.objects.create(
                 usuario=request.user,
-                tipo_bolsa=tipo_bolsa,
+                tipo_bolsa=material,
                 stock_sistema_before=stock_sistema_before,
                 stock_fisico=stock_fisico,
                 diferencia=diferencia,
@@ -1164,29 +1155,25 @@ def ajustar_inventario(request):
 
         messages.success(
             request,
-            f"Ajuste guardado: {TIPOS_BOLSA_DICT[tipo_bolsa]}, {stock_sistema_before} → {stock_fisico} bolsas ({diferencia})."
+            f"Ajuste guardado: {material.nombre}, {stock_sistema_before} → {stock_fisico} bolsas ({diferencia})."
         )
         return redirect("crm:consumo_bolsas")
 
-    # GET: mostrar formulario
-    tipo = request.GET.get("tipo") or "20_lav"
+    tipo = request.GET.get("tipo")
+    material = next(
+        (m for m in materiales_activos if m.codigo == tipo), None
+    )
+    if material is None:
+        material = materiales_activos[0]
 
-    # Validar tipo en GET - si es inválido, redirigir
-    if tipo and tipo not in TIPOS_BOLSA_DICT:
-        messages.error(request, "Tipo de bolsa inválido.")
-        return redirect("crm:consumo_bolsas")
-
-    # Obtener stock para mostrar
-    from .services_inventario import inventario_bolsas_actual
     data = inventario_bolsas_actual()
-    stock_actual = data[f"stock_actual_{tipo}"]
-    nombre_producto = TIPOS_BOLSA_DICT.get(tipo, "Lavanda 20 kg")
+    stock_actual = data.get(f"stock_actual_{material.codigo}", 0)
 
     context = {
-        "tipo_seleccionado": tipo,
-        "nombre_producto": nombre_producto,
+        "tipo_seleccionado": material.codigo,
+        "nombre_producto": material.nombre,
         "stock_actual": stock_actual,
-        "TIPOS_BOLSA_DICT": TIPOS_BOLSA_DICT,
+        "materiales": materiales_activos,
         "motivo_choices": MOTIVOS_AJUSTE,
     }
     return render(request, "crm/ajustar_inventario.html", context)
@@ -1212,7 +1199,7 @@ def ingresos_material(request):
                 if tipo_bolsa and cantidad:
                     lineas.append((tipo_bolsa, cantidad))
 
-            tipos = [tipo for tipo, _ in lineas]
+            tipos = [getattr(tipo, "codigo", tipo) for tipo, _ in lineas]
             if len(tipos) != len(set(tipos)):
                 form.add_error(None, "No repitas el mismo tipo de bolsa en una recepción.")
             elif not lineas:
@@ -1247,7 +1234,7 @@ def ingresos_material(request):
 
     ingresos = (
         IngresoMaterial.objects
-        .select_related("importacion", "creado_por")
+        .select_related("importacion", "tipo_bolsa", "creado_por")
         .order_by("-fecha", "-id")
     )
 
@@ -1275,7 +1262,7 @@ def contenedor_detalle(request, importacion_id):
     movimientos = (
         MovimientoBolsasVenta.objects
         .filter(importacion=importacion)
-        .select_related("venta_item__producto", "creado_por", "movimiento_origen")
+        .select_related("venta_item__producto", "tipo_bolsa", "creado_por", "movimiento_origen")
         .order_by("-creado_en", "-id")
     )
     return render(request, "crm/contenedor_detalle.html", {

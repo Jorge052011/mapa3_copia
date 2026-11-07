@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -6,24 +7,37 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
-from .constants import TIPOS_BOLSA
 from .models import (
     ControlTrazabilidad,
     Importacion,
     IngresoMaterial,
+    Material,
     MovimientoBolsasVenta,
     Venta,
     VentaItem,
 )
-from .services_inventario import SKU_BOLSAS_MAP, inventario_bolsas_actual
+from .services_inventario import inventario_bolsas_actual
 
 FECHA_INICIO_DEFAULT = date(2026, 10, 28)
-TIPOS = [tipo for tipo, _ in TIPOS_BOLSA]
-ETIQUETAS = dict(TIPOS_BOLSA)
+
+
+def _codigo(tipo):
+    return getattr(tipo, "codigo", tipo)
+
+
+def _material(tipo, activo=None):
+    qs = Material.objects.filter(codigo=_codigo(tipo))
+    if activo is not None:
+        qs = qs.filter(activo=activo)
+    return qs.first()
+
+
+def _materiales():
+    return list(Material.objects.all().order_by("peso_kg", "nombre", "codigo"))
 
 
 def _vacío():
-    return {tipo: 0 for tipo in TIPOS}
+    return {material.codigo: 0 for material in _materiales()}
 
 
 def get_control():
@@ -46,7 +60,8 @@ def _validar_control_activo():
 
 
 def _texto_tipo(tipo):
-    return ETIQUETAS.get(tipo, tipo)
+    material = _material(tipo)
+    return material.nombre if material else str(_codigo(tipo))
 
 
 def recibido_contenedor(importacion, tipo_bolsa=None):
@@ -55,44 +70,51 @@ def recibido_contenedor(importacion, tipo_bolsa=None):
         control_contenedor=True,
     )
     if tipo_bolsa:
-        return qs.filter(tipo_bolsa=tipo_bolsa).aggregate(
+        return qs.filter(tipo_bolsa__codigo=_codigo(tipo_bolsa)).aggregate(
             total=Sum("cantidad")
         )["total"] or 0
 
     resultado = _vacío()
-    for fila in qs.values("tipo_bolsa").annotate(total=Sum("cantidad")):
-        if fila["tipo_bolsa"] in resultado:
-            resultado[fila["tipo_bolsa"]] = fila["total"] or 0
+    for fila in qs.values("tipo_bolsa__codigo").annotate(total=Sum("cantidad")):
+        codigo = fila["tipo_bolsa__codigo"]
+        if codigo in resultado:
+            resultado[codigo] = fila["total"] or 0
     return resultado
 
 
 def resumen_contenedor(importacion):
     recibido = recibido_contenedor(importacion)
+    materiales = _materiales()
     asignado = _vacío()
     devuelto = _vacío()
 
     for mov in MovimientoBolsasVenta.objects.filter(
         importacion=importacion
-    ).values("tipo_bolsa", "cantidad"):
-        tipo = mov["tipo_bolsa"]
-        if tipo not in recibido:
+    ).values("tipo_bolsa__codigo", "cantidad"):
+        codigo = mov["tipo_bolsa__codigo"]
+        if codigo not in recibido:
             continue
         cantidad = mov["cantidad"] or 0
         if cantidad > 0:
-            asignado[tipo] += cantidad
+            asignado[codigo] += cantidad
         else:
-            devuelto[tipo] += abs(cantidad)
+            devuelto[codigo] += abs(cantidad)
 
     filas = []
-    for tipo in TIPOS:
-        saldo = recibido[tipo] - asignado[tipo] + devuelto[tipo]
+    for material in materiales:
+        codigo = material.codigo
+        saldo = recibido[codigo] - asignado[codigo] + devuelto[codigo]
+        peso_saldo = (Decimal(saldo) * material.peso_kg).quantize(Decimal("0.01"))
         filas.append({
-            "tipo_bolsa": tipo,
-            "etiqueta": _texto_tipo(tipo),
-            "recibido": recibido[tipo],
-            "asignado": asignado[tipo],
-            "devuelto": devuelto[tipo],
+            "tipo_bolsa": codigo,
+            "material": material,
+            "etiqueta": material.nombre,
+            "peso_kg": material.peso_kg,
+            "recibido": recibido[codigo],
+            "asignado": asignado[codigo],
+            "devuelto": devuelto[codigo],
             "saldo": saldo,
+            "peso_saldo_kg": peso_saldo,
         })
 
     return {
@@ -104,11 +126,14 @@ def resumen_contenedor(importacion):
         "saldo": {
             fila["tipo_bolsa"]: fila["saldo"] for fila in filas
         },
+        "total_peso_saldo_kg": sum(
+            (fila["peso_saldo_kg"] for fila in filas), Decimal("0")
+        ).quantize(Decimal("0.01")),
     }
 
 
 def saldo_contenedor(importacion, tipo_bolsa):
-    return resumen_contenedor(importacion)["saldo"].get(tipo_bolsa, 0)
+    return resumen_contenedor(importacion)["saldo"].get(_codigo(tipo_bolsa), 0)
 
 
 def saldos_por_contenedor():
@@ -122,11 +147,12 @@ def saldos_por_contenedor():
 
 
 def importaciones_con_saldo(tipo_bolsa):
+    codigo = _codigo(tipo_bolsa)
     recibidos = {
         fila["importacion_id"]: fila["total"] or 0
         for fila in (
             IngresoMaterial.objects
-            .filter(control_contenedor=True, tipo_bolsa=tipo_bolsa)
+            .filter(control_contenedor=True, tipo_bolsa__codigo=codigo)
             .values("importacion_id")
             .annotate(total=Sum("cantidad"))
         )
@@ -135,7 +161,7 @@ def importaciones_con_saldo(tipo_bolsa):
         fila["importacion_id"]: fila["total"] or 0
         for fila in (
             MovimientoBolsasVenta.objects
-            .filter(tipo_bolsa=tipo_bolsa)
+            .filter(tipo_bolsa__codigo=codigo)
             .values("importacion_id")
             .annotate(total=Sum("cantidad"))
         )
@@ -168,27 +194,26 @@ def importaciones_recepcionables():
 
 
 def requerido_bolsas_item(item):
-    sku = (item.producto.sku or "").strip()
-    if sku not in SKU_BOLSAS_MAP:
-        return {}
-
-    cantidades = SKU_BOLSAS_MAP[sku]
     requerido = {}
-    for tipo, por_unidad in zip(TIPOS, cantidades):
-        if por_unidad:
-            requerido[tipo] = int(por_unidad) * int(item.cantidad)
+    for componente in (
+        item.producto.componentes.select_related("material").all()
+    ):
+        requerido[componente.material.codigo] = (
+            int(componente.cantidad) * int(item.cantidad)
+        )
     return requerido
 
 
 def asignado_neto_item(item, tipo_bolsa=None):
     qs = MovimientoBolsasVenta.objects.filter(venta_item=item)
     if tipo_bolsa:
-        qs = qs.filter(tipo_bolsa=tipo_bolsa)
+        qs = qs.filter(tipo_bolsa__codigo=_codigo(tipo_bolsa))
     resultado = _vacío()
-    for fila in qs.values("tipo_bolsa").annotate(total=Sum("cantidad")):
-        if fila["tipo_bolsa"] in resultado:
-            resultado[fila["tipo_bolsa"]] = fila["total"] or 0
-    return resultado if tipo_bolsa is None else resultado.get(tipo_bolsa, 0)
+    for fila in qs.values("tipo_bolsa__codigo").annotate(total=Sum("cantidad")):
+        codigo = fila["tipo_bolsa__codigo"]
+        if codigo in resultado:
+            resultado[codigo] = fila["total"] or 0
+    return resultado if tipo_bolsa is None else resultado.get(_codigo(tipo_bolsa), 0)
 
 
 def pendiente_item(item):
@@ -237,7 +262,7 @@ def detalle_trazabilidad_venta(venta):
         movimientos = list(
             MovimientoBolsasVenta.objects
             .filter(venta_item=item)
-            .select_related("importacion", "creado_por")
+            .select_related("importacion", "tipo_bolsa", "creado_por")
             .order_by("-creado_en", "-id")
         )
         for movimiento in movimientos:
@@ -282,40 +307,47 @@ def ventas_con_trazabilidad_pendiente():
 
 def conciliacion_por_tipo():
     inventario = inventario_bolsas_actual()
+    materiales = _materiales()
 
     recibido = _vacío()
     for fila in (
         IngresoMaterial.objects
         .filter(control_contenedor=True)
-        .values("tipo_bolsa")
+        .values("tipo_bolsa__codigo")
         .annotate(total=Sum("cantidad"))
     ):
-        if fila["tipo_bolsa"] in recibido:
-            recibido[fila["tipo_bolsa"]] = fila["total"] or 0
+        codigo = fila["tipo_bolsa__codigo"]
+        if codigo in recibido:
+            recibido[codigo] = fila["total"] or 0
 
     asignado = _vacío()
     devuelto = _vacío()
-    for mov in MovimientoBolsasVenta.objects.values("tipo_bolsa", "cantidad"):
-        tipo = mov["tipo_bolsa"]
-        if tipo not in asignado:
+    for mov in MovimientoBolsasVenta.objects.values(
+        "tipo_bolsa__codigo", "cantidad"
+    ):
+        codigo = mov["tipo_bolsa__codigo"]
+        if codigo not in asignado:
             continue
         cantidad = mov["cantidad"] or 0
         if cantidad > 0:
-            asignado[tipo] += cantidad
+            asignado[codigo] += cantidad
         else:
-            devuelto[tipo] += abs(cantidad)
+            devuelto[codigo] += abs(cantidad)
 
     filas = []
-    for tipo in TIPOS:
-        saldo_contenedores = recibido[tipo] - asignado[tipo] + devuelto[tipo]
-        stock_general = inventario[f"stock_actual_{tipo}"]
+    for material in materiales:
+        codigo = material.codigo
+        saldo_contenedores = recibido[codigo] - asignado[codigo] + devuelto[codigo]
+        stock_general = inventario[f"stock_actual_{codigo}"]
         filas.append({
-            "tipo_bolsa": tipo,
-            "etiqueta": _texto_tipo(tipo),
+            "tipo_bolsa": codigo,
+            "material": material,
+            "etiqueta": material.nombre,
+            "peso_kg": material.peso_kg,
             "stock_general": stock_general,
-            "recibido": recibido[tipo],
-            "asignado": asignado[tipo],
-            "devuelto": devuelto[tipo],
+            "recibido": recibido[codigo],
+            "asignado": asignado[codigo],
+            "devuelto": devuelto[codigo],
             "saldo_contenedores": saldo_contenedores,
             "diferencia": stock_general - saldo_contenedores,
         })
@@ -338,8 +370,11 @@ def asignar_bolsas(
         raise ValidationError("No se asigna una nota de crédito como salida de contenedor.")
     if item.venta.fecha.date() < fecha_inicio_control():
         raise ValidationError("La venta es anterior al inicio del control por contenedor.")
-    if tipo_bolsa not in TIPOS:
-        raise ValidationError("Tipo de bolsa inválido.")
+
+    material = _material(tipo_bolsa, activo=True)
+    if material is None:
+        raise ValidationError("Tipo de bolsa inválido o inactivo.")
+    codigo = material.codigo
 
     try:
         cantidad = int(cantidad)
@@ -358,19 +393,19 @@ def asignar_bolsas(
 
     with transaction.atomic():
         importacion = Importacion.objects.select_for_update().get(pk=importacion.pk)
-        requerido = requerido_bolsas_item(item).get(tipo_bolsa, 0)
+        requerido = requerido_bolsas_item(item).get(codigo, 0)
         if requerido <= 0:
             raise ValidationError(
                 "El producto de este ítem no requiere bolsas de ese tipo."
             )
 
-        pendiente = pendiente_item(item).get(tipo_bolsa, 0)
+        pendiente = pendiente_item(item).get(codigo, 0)
         if cantidad > pendiente:
             raise ValidationError(
                 f"La asignación excede el pendiente ({pendiente} bolsas)."
             )
 
-        saldo = saldo_contenedor(importacion, tipo_bolsa)
+        saldo = saldo_contenedor(importacion, codigo)
         if cantidad > saldo:
             raise ValidationError(
                 f"El contenedor solo tiene {saldo} bolsas disponibles de ese tipo."
@@ -382,7 +417,7 @@ def asignar_bolsas(
             venta_ref=item.venta_id,
             sku=(item.producto.sku or "").strip(),
             importacion=importacion,
-            tipo_bolsa=tipo_bolsa,
+            tipo_bolsa=material,
             cantidad=cantidad,
             tipo_movimiento=MovimientoBolsasVenta.TipoMovimiento.ASIGNACION,
             idempotency_key=idempotency_key,
@@ -447,7 +482,9 @@ def registrar_devolucion_fisica(
 
     if cantidad <= 0:
         raise ValidationError("La cantidad devuelta debe ser mayor a 0.")
-    if tipo_bolsa not in TIPOS:
+
+    material = _material(tipo_bolsa)
+    if material is None:
         raise ValidationError("Tipo de bolsa inválido.")
 
     if idempotency_key:
@@ -460,7 +497,7 @@ def registrar_devolucion_fisica(
     with transaction.atomic():
         importacion = Importacion.objects.select_for_update().get(pk=importacion.pk)
 
-        asignado = asignado_neto_item(item, tipo_bolsa)
+        asignado = asignado_neto_item(item, material.codigo)
         if cantidad > asignado:
             raise ValidationError(
                 f"La devolución excede lo asignado a este ítem ({asignado} bolsas)."
@@ -472,7 +509,7 @@ def registrar_devolucion_fisica(
             venta_ref=item.venta_id,
             sku=(item.producto.sku or "").strip(),
             importacion=importacion,
-            tipo_bolsa=tipo_bolsa,
+            tipo_bolsa=material,
             cantidad=-cantidad,
             tipo_movimiento=MovimientoBolsasVenta.TipoMovimiento.DEVOLUCION,
             idempotency_key=idempotency_key,
@@ -491,15 +528,23 @@ def crear_recepcion(importacion, fecha, lineas, usuario=None, recepcion_key=None
             "La importación no está habilitada para nuevas recepciones."
         )
 
-    tipos = [tipo for tipo, _ in lineas]
-    if len(tipos) != len(set(tipos)):
+    normalizadas = []
+    codigos = []
+    for tipo_bolsa, cantidad in lineas:
+        material = _material(tipo_bolsa, activo=True)
+        if material is None:
+            raise ValidationError("Tipo de bolsa inválido o inactivo.")
+        codigos.append(material.codigo)
+        normalizadas.append((material, cantidad))
+
+    if len(codigos) != len(set(codigos)):
         raise ValidationError("No repitas el mismo tipo de bolsa en una recepción.")
 
     recepcion_key = recepcion_key or uuid4()
 
     existentes = list(
         IngresoMaterial.objects.filter(recepcion_key=recepcion_key)
-        .select_related("importacion")
+        .select_related("importacion", "tipo_bolsa")
     )
     if existentes:
         return existentes
@@ -507,20 +552,18 @@ def crear_recepcion(importacion, fecha, lineas, usuario=None, recepcion_key=None
     creados = []
 
     with transaction.atomic():
-        for tipo_bolsa, cantidad in lineas:
+        for material, cantidad in normalizadas:
             try:
                 cantidad = int(cantidad)
             except (TypeError, ValueError):
                 raise ValidationError("Todas las cantidades deben ser enteros.")
-            if tipo_bolsa not in TIPOS:
-                raise ValidationError("Tipo de bolsa inválido.")
             if cantidad <= 0:
                 raise ValidationError("Todas las cantidades deben ser mayores a 0.")
 
             ingreso = IngresoMaterial(
                 fecha=fecha,
                 importacion=importacion,
-                tipo_bolsa=tipo_bolsa,
+                tipo_bolsa=material,
                 cantidad=cantidad,
                 control_contenedor=True,
                 recepcion_key=recepcion_key,

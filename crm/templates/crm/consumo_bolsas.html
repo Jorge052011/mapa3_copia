@@ -129,177 +129,51 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
     </form>
   </div>
 
-  <!-- ══════════════════════════════
-       LÍNEA LAVANDA
-  ══════════════════════════════ -->
-  <div class="kpi-group-title">🪻 Línea Lavanda</div>
+  <!-- Stock y consumo por material -->
+  <div class="kpi-group-title">📦 Stock y consumo por material</div>
   <div class="kpis-grid">
+    {% for material in data.materiales %}
+      {% cycle 'kpi-lav' 'kpi-carbon' 'kpi-talco' 'kpi-cafe' as color silent %}
+      <div class="kpi-card {{ color }}">
+        <div class="kpi-header">
+          <div class="kpi-icon">📤</div>
+          <div class="kpi-label">
+            Consumo {{ material.peso_kg|floatformat:0 }} kg<br>
+            <small>{{ material.nombre }}</small>
+          </div>
+        </div>
+        <div class="kpi-value consumo-val">{{ material.consumo|default:"0" }}</div>
+        <div class="kpi-footer">Unidades consumidas en el período</div>
+      </div>
 
-    <div class="kpi-card kpi-lav">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 8 kg<br><small>Lavanda</small></div>
+      <div class="kpi-card {{ color }}">
+        <div class="kpi-header">
+          <div class="kpi-icon">📦</div>
+          <div class="kpi-label">
+            Stock bodega {{ material.peso_kg|floatformat:0 }} kg<br>
+            <small>{{ material.nombre }}{% if not material.activo %} · Inactivo{% endif %}</small>
+          </div>
+        </div>
+        <div class="kpi-value {% if material.stock_actual < 0 %}status-bad{% endif %}">{{ material.stock_actual|default:"0" }}</div>
+        <div class="kpi-footer">
+          {% if material.stock_actual < 0 %}⚠️ Stock negativo - revisar
+          {% elif material.stock_actual < 20 %}⚡ Stock bajo - reponer pronto
+          {% else %}✓ Stock disponible{% endif %}
+        </div>
       </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_8_lav|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-lav">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Lavanda</small></div>
+    {% empty %}
+      <div class="kpi-card">
+        <div class="kpi-label">No hay materiales configurados.</div>
       </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_20_lav|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-lav">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 8 kg<br><small>Lavanda</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_8_lav < 0 %}status-bad{% endif %}">{{ data.stock_actual_8_lav|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_8_lav < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_8_lav < 50 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
-    <div class="kpi-card kpi-lav">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 20 kg<br><small>Lavanda</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_20_lav < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_lav|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_20_lav < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_20_lav < 50 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
+    {% endfor %}
   </div>
 
-  <!-- ══════════════════════════════
-       LÍNEA CARBÓN ACTIVADO — LAVANDA
-  ══════════════════════════════ -->
-  <div class="kpi-group-title">🖤 Línea Carbón Activado — Lavanda</div>
-  <div class="kpis-grid">
-
-    <div class="kpi-card kpi-carbon">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 8 kg<br><small>Carbón activado</small></div>
-      </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_8_carbon|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-carbon">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Carbón activado</small></div>
-      </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_20_carbon|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-carbon">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 8 kg<br><small>Carbón activado</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_8_carbon < 0 %}status-bad{% endif %}">{{ data.stock_actual_8_carbon|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_8_carbon < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_8_carbon < 50 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
-    <div class="kpi-card kpi-carbon">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 20 kg<br><small>Carbón activado</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_20_carbon < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_carbon|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_20_carbon < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_20_carbon < 50 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ══════════════════════════════
-       LÍNEA TALCO DE BEBÉ CON CARBÓN
-  ══════════════════════════════ -->
-  <div class="kpi-group-title">🩵 Línea Carbón Activado — Talco de Bebé</div>
-  <div class="kpis-grid" style="max-width:560px;">
-
-    <div class="kpi-card kpi-talco">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Talco de bebé</small></div>
-      </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_20_talco|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-talco">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 20 kg<br><small>Talco de bebé</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_20_talco < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_talco|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_20_talco < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_20_talco < 20 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
-  </div>
-
-
-  <!-- ══════════════════════════════
-       LÍNEA CAFÉ CON CARBÓN ACTIVADO
-  ══════════════════════════════ -->
-  <div class="kpi-group-title">☕ Línea Carbón Activado — Café</div>
-  <div class="kpis-grid" style="max-width:560px;">
-
-    <div class="kpi-card kpi-cafe">
-      <div class="kpi-header">
-        <div class="kpi-icon">📤</div>
-        <div class="kpi-label">Consumo bolsas 20 kg<br><small>Aroma café con carbón activado</small></div>
-      </div>
-      <div class="kpi-value consumo-val">{{ data.consumo_20_cafe|default:"0" }}</div>
-      <div class="kpi-footer">Unidades consumidas en el período</div>
-    </div>
-
-    <div class="kpi-card kpi-cafe">
-      <div class="kpi-header">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Stock bodega 20 kg<br><small>Aroma café con carbón activado</small></div>
-      </div>
-      <div class="kpi-value {% if data.stock_actual_20_cafe < 0 %}status-bad{% endif %}">{{ data.stock_actual_20_cafe|default:"0" }}</div>
-      <div class="kpi-footer">
-        {% if data.stock_actual_20_cafe < 0 %}⚠️ Stock negativo - revisar
-        {% elif data.stock_actual_20_cafe < 20 %}⚡ Stock bajo - reponer pronto
-        {% else %}✓ Stock disponible{% endif %}
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Alerta SKUs sin mapeo -->
-  {% if data.skus_sin_mapa %}
+  <!-- Alerta SKUs sin receta -->
+  {% if data.skus_sin_receta %}
   <div class="alert-warning" style="margin-top:28px;">
     <div>
-      <strong>SKUs sin mapeo detectados:</strong>
-      {{ data.skus_sin_mapa|join:", " }}
+      <strong>SKUs sin receta detectados:</strong>
+      {{ data.skus_sin_receta|join:", " }}
     </div>
   </div>
   {% endif %}
@@ -318,12 +192,9 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
             <th>Producto</th>
             <th>Tipo doc.</th>
             <th>Unidades</th>
-            <th class="col-lav">B8 Lav.</th>
-            <th class="col-lav">B20 Lav.</th>
-            <th class="col-carbon">B8 Carbón</th>
-            <th class="col-carbon">B20 Carbón</th>
-            <th class="col-talco">B20 Talco</th>
-            <th class="col-cafe">B20 Café</th>
+            {% for material in data.materiales %}
+              <th>B{{ material.peso_kg|floatformat:0 }} {{ material.nombre }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
@@ -337,16 +208,13 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
               </span>
             </td>
             <td>{{ r.unidades_sku|default:"0" }}</td>
-            <td class="{% if r.bolsas_8_lav %}col-lav{% else %}zero{% endif %}">{{ r.bolsas_8_lav|default:"0" }}</td>
-            <td class="{% if r.bolsas_20_lav %}col-lav{% else %}zero{% endif %}">{{ r.bolsas_20_lav|default:"0" }}</td>
-            <td class="{% if r.bolsas_8_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_8_carbon|default:"0" }}</td>
-            <td class="{% if r.bolsas_20_carbon %}col-carbon{% else %}zero{% endif %}">{{ r.bolsas_20_carbon|default:"0" }}</td>
-            <td class="{% if r.bolsas_20_talco %}col-talco{% else %}zero{% endif %}">{{ r.bolsas_20_talco|default:"0" }}</td>
-            <td class="{% if r.bolsas_20_cafe %}col-cafe{% else %}zero{% endif %}">{{ r.bolsas_20_cafe|default:"0" }}</td>
+            {% for valor in r.bolsas_lista %}
+              <td class="{% if valor.cantidad %}col-lav{% else %}zero{% endif %}">{{ valor.cantidad|default:"0" }}</td>
+            {% endfor %}
           </tr>
         {% empty %}
           <tr>
-            <td colspan="10">
+            <td colspan="{{ data.materiales|length|add:4 }}">
               <div class="empty-state">
                 <strong>Sin movimientos en el período seleccionado</strong>
                 <p>Ajusta los filtros de fecha para ver más información</p>
@@ -375,12 +243,11 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
   <h4>📦 Ajustar inventario</h4>
   <p>Si después de contar físicamente las bolsas encontrás diferencias con el sistema, podés hacer un ajuste aquí. Cada tipo de bolsa se ajusta de forma independiente.</p>
   <div style="margin-top: 16px;">
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=8_lav" class="btn btn-outline">Lavanda 8 kg</a>
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_lav" class="btn btn-outline">Lavanda 20 kg</a>
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=8_carbon" class="btn btn-outline">Carbón 8 kg</a>
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_carbon" class="btn btn-outline">Carbón 20 kg</a>
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_talco" class="btn btn-outline">Talco 20 kg</a>
-    <a href="{% url 'crm:ajustar_inventario' %}?tipo=20_cafe" class="btn btn-outline">Café 20 kg</a>
+    {% for material in data.materiales %}
+      {% if material.activo %}
+        <a href="{% url 'crm:ajustar_inventario' %}?tipo={{ material.codigo }}" class="btn btn-outline">{{ material.nombre }}</a>
+      {% endif %}
+    {% endfor %}
   </div>
 </div>
 

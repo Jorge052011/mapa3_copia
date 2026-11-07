@@ -35,6 +35,7 @@
             <th>Asignado</th>
             <th>Devuelto / revertido</th>
             <th>Saldo del contenedor</th>
+            <th>Peso del saldo (kg)</th>
           </tr>
         </thead>
         <tbody>
@@ -45,9 +46,16 @@
               <td>{{ fila.asignado }}</td>
               <td>{{ fila.devuelto }}</td>
               <td><strong>{{ fila.saldo }}</strong></td>
+              <td>{{ fila.peso_saldo_kg|floatformat:2 }}</td>
             </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="5" style="text-align:right;">Total</th>
+            <th>{{ resumen.total_peso_saldo_kg|floatformat:2 }} kg</th>
+          </tr>
+        </tfoot>
       </table>
     </div>
   </div>
