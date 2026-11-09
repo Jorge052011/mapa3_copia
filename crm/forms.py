@@ -14,6 +14,7 @@ from .models import (
     Material,
     productos_vendibles_qs,
 )
+from .services import normalizar_telefono
 from .services_trazabilidad import importaciones_recepcionables
 
 
@@ -23,7 +24,7 @@ class ClienteForm(forms.ModelForm):
         fields = ["nombre", "telefono", "email", "comuna", "direccion", "observaciones"]
 
     def clean_telefono(self):
-        telefono = (self.cleaned_data.get("telefono") or "").strip()
+        telefono = normalizar_telefono(self.cleaned_data.get("telefono"))
 
         if not telefono:
             return telefono

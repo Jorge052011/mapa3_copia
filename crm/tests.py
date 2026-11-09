@@ -7,11 +7,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import DatabaseError, IntegrityError, transaction
+from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import resolve, reverse
 from django.utils import timezone
 
-from .forms import IngresoMaterialForm, VentaItemForm
+from .forms import ClienteForm, IngresoMaterialForm, VentaItemForm
 from .models import (
     Cliente,
     CostoMensual,
@@ -27,6 +28,7 @@ from .models import (
     VentaItem,
     productos_vendibles_qs,
 )
+from .services import normalizar_telefono
 from .services_inventario import (
     consumo_bolsas,
     inventario_bolsas_actual,
@@ -55,6 +57,98 @@ class ClienteTestCase(TestCase):
     def test_segmento_nuevo(self):
         cliente = Cliente.objects.create(nombre="Nuevo")
         self.assertEqual(cliente.segmento, "Ocasional")
+
+
+class TelefonoTestCase(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="telefono_tester",
+            password="test-pass",
+        )
+        self.client.force_login(self.user)
+
+    def test_normalizar_telefono(self):
+        self.assertEqual(
+            normalizar_telefono("+56 9 2005 4682"),
+            "+56920054682",
+        )
+        self.assertEqual(
+            normalizar_telefono("+56\u00a09\u00a02005\u00a04682"),
+            "+56920054682",
+        )
+        self.assertEqual(
+            normalizar_telefono("+ +56920054682"),
+            "+56920054682",
+        )
+        self.assertEqual(
+            normalizar_telefono("(56) 9-2005-4682"),
+            "56920054682",
+        )
+        self.assertEqual(normalizar_telefono("   "), "")
+
+    def test_buscar_telefono_con_espacios(self):
+        cliente = Cliente.objects.create(
+            nombre="Cliente espacios",
+            telefono="+56912345678",
+        )
+
+        with patch("crm.views.render", return_value=HttpResponse("ok")) as render:
+            response = self.client.post(
+                reverse("crm:buscar_cliente_telefono"),
+                {"telefono": "+56 9 1234 5678"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(render.call_args[0][2]["cliente"], cliente)
+
+    def test_buscar_telefono_sin_codigo_pais(self):
+        cliente = Cliente.objects.create(
+            nombre="Cliente sin codigo",
+            telefono="+56912345678",
+        )
+
+        with patch("crm.views.render", return_value=HttpResponse("ok")) as render:
+            response = self.client.post(
+                reverse("crm:buscar_cliente_telefono"),
+                {"telefono": "9 1234 5678"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(render.call_args[0][2]["cliente"], cliente)
+
+    def test_buscar_telefono_registro_antiguo_con_espacios(self):
+        cliente = Cliente.objects.create(
+            nombre="Cliente antiguo",
+            telefono="+ +56920054682",
+        )
+
+        with patch("crm.views.render", return_value=HttpResponse("ok")) as render:
+            response = self.client.post(
+                reverse("crm:buscar_cliente_telefono"),
+                {"telefono": "+56 9 2005 4682"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(render.call_args[0][2]["cliente"], cliente)
+
+    def test_formulario_guarda_telefono_normalizado(self):
+        form = ClienteForm(
+            data={"nombre": "Cliente form", "telefono": "+56 9 2005 4682"}
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        cliente = form.save()
+        self.assertEqual(cliente.telefono, "+56920054682")
+
+    def test_formulario_detecta_duplicado_normalizado(self):
+        Cliente.objects.create(nombre="Existente", telefono="+56920054682")
+
+        form = ClienteForm(
+            data={"nombre": "Duplicado", "telefono": "+56 9 2005 4682"}
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("telefono", form.errors)
 
 
 class CostoMensualTestCase(TestCase):
