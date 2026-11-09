@@ -1,8 +1,35 @@
 # crm/services.py
+import re
+
 from django.utils import timezone
 from django.db.models import Sum, Max, Count
 from decimal import Decimal
 from .models import Venta, Importacion
+
+
+def normalizar_telefono(valor):
+    """
+    Deja un teléfono en formato consistente.
+
+    Elimina espacios (incluidos NBSP), guiones, puntos, paréntesis y cualquier
+    otro carácter que no sea dígito. Conserva un único '+' inicial si el valor
+    original comenzaba con '+'.
+
+    Ejemplos:
+        "+56 9 2005 4682" -> "+56920054682"
+        "9 2005 4682"     -> "920054682"
+        "+ +56920054682"  -> "+56920054682"
+    """
+    valor = (valor or "").strip()
+    if not valor:
+        return ""
+
+    tenia_mas = valor.startswith("+")
+    digitos = re.sub(r"\D", "", valor)
+    if not digitos:
+        return ""
+
+    return f"+{digitos}" if tenia_mas else digitos
 
 
 def segmentar_cliente(c):

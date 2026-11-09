@@ -32,6 +32,7 @@ from .forms import (
     ClienteForm, VentaForm, VentaItemForm, IngresoMaterialForm,
     RecepcionMaterialForm, RecepcionLineaFormSet,
 )
+from .services import normalizar_telefono
 from .services_trazabilidad import (
     asignar_bolsas,
     conciliacion_por_tipo,
@@ -467,10 +468,24 @@ def buscar_cliente_telefono(request):
     buscado = False
 
     if request.method == "POST":
-        telefono = (request.POST.get("telefono") or "").strip()
+        telefono = normalizar_telefono(request.POST.get("telefono"))
         buscado = True
         if telefono:
             cliente = Cliente.objects.filter(telefono=telefono).first()
+
+            if not cliente:
+                digitos = telefono.lstrip("+")
+                if len(digitos) >= 9:
+                    ultimos9 = digitos[-9:]
+                    candidatos = Cliente.objects.filter(telefono__endswith=ultimos9)
+                    cliente = next(
+                        (
+                            c
+                            for c in candidatos
+                            if normalizar_telefono(c.telefono).lstrip("+")[-9:] == ultimos9
+                        ),
+                        None,
+                    )
 
     return render(
         request,

@@ -8,10 +8,35 @@
   {% csrf_token %}
 
   <label for="telefono">Teléfono</label>
-  <input type="text" id="telefono" name="telefono" placeholder="Ej: +56912345678 " required>
+  <input type="tel" id="telefono" name="telefono" inputmode="tel" autocomplete="tel" placeholder="Ej: +56912345678" required>
 
   <button type="submit">Buscar</button>
 </form>
+
+<script>
+  (function () {
+    const input = document.getElementById("telefono");
+
+    function limpiarTelefono(valor) {
+      const texto = (valor || "").trim();
+      const teniaMas = texto.startsWith("+");
+      const digitos = texto.replace(/\D/g, "");
+      return (teniaMas && digitos ? "+" : "") + digitos;
+    }
+
+    function normalizarCampo() {
+      const limpio = limpiarTelefono(input.value);
+      if (input.value !== limpio) {
+        input.value = limpio;
+      }
+    }
+
+    input.addEventListener("input", normalizarCampo);
+    input.addEventListener("paste", function () {
+      setTimeout(normalizarCampo, 0);
+    });
+  })();
+</script>
 
 {% if buscado %}
   <hr>
