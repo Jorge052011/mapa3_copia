@@ -82,19 +82,107 @@ def recibido_contenedor(importacion, tipo_bolsa=None):
     return resultado
 
 
-def resumen_contenedor(importacion):
+def _analisis_ventas_contenedor(movimientos, total_kg_recibido, hoy=None):
+    hoy = hoy or timezone.localdate()
+    tipos_bolsa = {}
+    total_kg = Decimal("0")
+    primera_salida = None
+
+    for mov in movimientos:
+        cantidad = mov.cantidad or 0
+        material = mov.tipo_bolsa
+        kg = Decimal(cantidad) * (material.peso_kg or Decimal("0"))
+        total_kg += kg
+
+        if cantidad > 0:
+            fecha_mov = timezone.localtime(mov.creado_en).date()
+            if primera_salida is None or fecha_mov < primera_salida:
+                primera_salida = fecha_mov
+
+        fila = tipos_bolsa.setdefault(
+            material.codigo,
+            {
+                "nombre": material.nombre,
+                "codigo": material.codigo,
+                "kg": Decimal("0"),
+                "bolsas": 0,
+            },
+        )
+        fila["kg"] += kg
+        fila["bolsas"] += cantidad
+
+    filas = [fila for fila in tipos_bolsa.values() if fila["kg"] > 0]
+    filas.sort(key=lambda fila: fila["kg"], reverse=True)
+
+    total_kg = sum((fila["kg"] for fila in filas), Decimal("0")).quantize(
+        Decimal("0.01")
+    )
+    total_bolsas = sum(fila["bolsas"] for fila in filas)
+
+    if primera_salida:
+        dias = max((hoy - primera_salida).days + 1, 1)
+    else:
+        dias = 0
+
+    velocidad_kg_dia = (
+        (total_kg / Decimal(dias)).quantize(Decimal("0.01"))
+        if dias and total_kg > 0
+        else Decimal("0.00")
+    )
+
+    avance_pct = (
+        (total_kg / total_kg_recibido * Decimal("100")).quantize(Decimal("0.1"))
+        if total_kg_recibido > 0 and total_kg > 0
+        else Decimal("0.0")
+    )
+
+    for indice, fila in enumerate(filas):
+        porcentaje = (
+            (fila["kg"] / total_kg * Decimal("100")).quantize(Decimal("0.1"))
+            if total_kg > 0
+            else Decimal("0.0")
+        )
+        fila["kg"] = fila["kg"].quantize(Decimal("0.01"))
+        fila["porcentaje"] = porcentaje
+        fila["porcentaje_barra"] = min(100, max(0, int(porcentaje)))
+        fila["velocidad_kg_dia"] = (
+            (fila["kg"] / Decimal(dias)).quantize(Decimal("0.01"))
+            if dias
+            else Decimal("0.00")
+        )
+        fila["es_lider"] = indice == 0
+
+    return {
+        "hay_ventas": bool(filas),
+        "filas": filas,
+        "lider": filas[0] if filas else None,
+        "total_kg": total_kg,
+        "total_bolsas": total_bolsas,
+        "kg_recibidos": total_kg_recibido,
+        "avance_pct": avance_pct,
+        "velocidad_kg_dia": velocidad_kg_dia,
+        "primera_salida": primera_salida,
+        "dias": dias,
+    }
+
+
+def resumen_contenedor(importacion, hoy=None):
     recibido = recibido_contenedor(importacion)
     materiales = _materiales()
     asignado = _vacío()
     devuelto = _vacío()
 
-    for mov in MovimientoBolsasVenta.objects.filter(
-        importacion=importacion
-    ).values("tipo_bolsa__codigo", "cantidad"):
-        codigo = mov["tipo_bolsa__codigo"]
+    movimientos = list(
+        MovimientoBolsasVenta.objects
+        .filter(importacion=importacion)
+        .select_related("tipo_bolsa")
+    )
+
+    for mov in movimientos:
+        codigo = mov.tipo_bolsa.codigo
         if codigo not in recibido:
             continue
-        cantidad = mov["cantidad"] or 0
+        cantidad = mov.cantidad or 0
         if cantidad > 0:
             asignado[codigo] += cantidad
         else:
@@ -117,6 +205,20 @@ def resumen_contenedor(importacion):
             "peso_saldo_kg": peso_saldo,
         })
 
+    total_kg_recibido = sum(
+        (
+            Decimal(recibido[material.codigo]) * material.peso_kg
+            for material in materiales
+        ),
+        Decimal("0"),
+    ).quantize(Decimal("0.01"))
+
+    analisis = _analisis_ventas_contenedor(
+        movimientos,
+        total_kg_recibido,
+        hoy=hoy,
+    )
+
     return {
         "importacion": importacion,
         "filas": filas,
@@ -129,6 +231,7 @@ def resumen_contenedor(importacion):
         "total_peso_saldo_kg": sum(
             (fila["peso_saldo_kg"] for fila in filas), Decimal("0")
         ).quantize(Decimal("0.01")),
+        "analisis": analisis,
     }
 
 
@@ -136,14 +239,14 @@ def saldo_contenedor(importacion, tipo_bolsa):
     return resumen_contenedor(importacion)["saldo"].get(_codigo(tipo_bolsa), 0)
 
 
-def saldos_por_contenedor():
+def saldos_por_contenedor(hoy=None):
     importaciones = (
         Importacion.objects
         .filter(ingresos_material__control_contenedor=True)
         .distinct()
         .order_by("-fecha", "-id")
     )
-    return [resumen_contenedor(imp) for imp in importaciones]
+    return [resumen_contenedor(imp, hoy=hoy) for imp in importaciones]
 
 
 def importaciones_con_saldo(tipo_bolsa):
