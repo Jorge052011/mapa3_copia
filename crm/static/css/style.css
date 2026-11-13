@@ -3,7 +3,6 @@ BASE
 ========================= */
 html, body {
   max-width: 100%;
-  overflow-x: hidden; /* ✅ evita desbordes laterales en móvil */
 }
 
 body {
@@ -448,7 +447,6 @@ TABLE WRAP (para que no se salga del marco)
 
 .table-wrap table {
   width: 100%;
-  min-width: 1000px; /* ajusta si agregas más columnas */
   border-collapse: collapse;
 }
 
@@ -487,10 +485,6 @@ RESPONSIVE
     font-size: 0.95em;
   }
 
-  /* baja un poco el mínimo en móvil para que el scroll sea menos agresivo */
-  .table-wrap table {
-    min-width: 860px;
-  }
 }
 
 @media (max-width: 420px) {

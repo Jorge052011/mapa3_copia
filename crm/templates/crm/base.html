@@ -12,53 +12,64 @@
     <header>
         <h1>Gestión Comercial</h1>
         <nav class="main-nav">
+          {% with u=request.resolver_match.url_name %}
           <a href="{% url 'crm:clientes_list' %}"
-            class="{% if request.resolver_match.url_name == 'clientes_list' %}active{% endif %}">
+            class="{% if u == 'clientes_list' %}active{% endif %}"
+            {% if u == 'clientes_list' %}aria-current="page"{% endif %}>
             Clientes
           </a>
           <a href="{% url 'crm:ventas_list' %}"
-            class="{% if request.resolver_match.url_name == 'ventas_list' %}active{% endif %}">
+            class="{% if u == 'ventas_list' %}active{% endif %}"
+            {% if u == 'ventas_list' %}aria-current="page"{% endif %}>
             💰 Ventas
           </a>
 
           <a href="{% url 'crm:depositos_list' %}"
-            class="{% if request.resolver_match.url_name == 'depositos_list' or request.resolver_match.url_name == 'deposito_editar' or request.resolver_match.url_name == 'deposito_historial' %}active{% endif %}">
+            class="{% if u == 'depositos_list' or u == 'deposito_editar' or u == 'deposito_historial' %}active{% endif %}"
+            {% if u == 'depositos_list' or u == 'deposito_editar' or u == 'deposito_historial' %}aria-current="page"{% endif %}>
             💵 Depósitos
           </a>
 
           <a href="{% url 'crm:repartidor_pendiente' %}"
-            class="{% if request.resolver_match.url_name == 'repartidor_pendiente' %}active{% endif %}">
+            class="{% if u == 'repartidor_pendiente' %}active{% endif %}"
+            {% if u == 'repartidor_pendiente' %}aria-current="page"{% endif %}>
             💰 Efectivo pendiente
           </a>
 
           <a href="{% url 'crm:buscar_cliente_telefono' %}"
-             class="{% if request.resolver_match.url_name == 'buscar_cliente_telefono' %}active{% endif %}">
+             class="{% if u == 'buscar_cliente_telefono' %}active{% endif %}"
+             {% if u == 'buscar_cliente_telefono' %}aria-current="page"{% endif %}>
              🔎 Buscar teléfono
           </a>
-          
+
           <a href="{% url 'crm:resumen_mensual' %}"
-            class="{% if request.resolver_match.url_name == 'resumen_mensual' %}active{% endif %}">
+            class="{% if u == 'resumen_mensual' %}active{% endif %}"
+            {% if u == 'resumen_mensual' %}aria-current="page"{% endif %}>
             📊 Resumen mensual
           </a>
-          <a href="{% url 'crm:dashboard' %}">📊 Dashboard</a>
+          <a href="{% url 'crm:dashboard' %}"
+            class="{% if u == 'dashboard' %}active{% endif %}"
+            {% if u == 'dashboard' %}aria-current="page"{% endif %}>📊 Dashboard</a>
           <a class="btn btn-secondary" href="{% url 'crm:inventario' %}">📦 Inventario</a>
           <a href="{% url 'crm:consumo_bolsas' %}" class="btn-inventario">
             📦 Inventario bolsas
           </a>
           <a href="{% url 'crm:ingresos_material' %}"
-            class="{% if request.resolver_match.url_name == 'ingresos_material' %}active{% endif %}">
+            class="{% if u == 'ingresos_material' %}active{% endif %}"
+            {% if u == 'ingresos_material' %}aria-current="page"{% endif %}>
             📥 Ingresos material
           </a>
           <a href="{% url 'crm:contenedores_list' %}"
-            class="{% if request.resolver_match.url_name == 'contenedores_list' or request.resolver_match.url_name == 'contenedor_detalle' %}active{% endif %}">
+            class="{% if u == 'contenedores_list' or u == 'contenedor_detalle' %}active{% endif %}"
+            {% if u == 'contenedores_list' or u == 'contenedor_detalle' %}aria-current="page"{% endif %}>
             🚛 Contenedores
           </a>
           <a href="{% url 'crm:conciliacion_trazabilidad' %}"
-            class="{% if request.resolver_match.url_name == 'conciliacion_trazabilidad' %}active{% endif %}">
+            class="{% if u == 'conciliacion_trazabilidad' %}active{% endif %}"
+            {% if u == 'conciliacion_trazabilidad' %}aria-current="page"{% endif %}>
             ⚖️ Conciliación
           </a>
-
-
+          {% endwith %}
         </nav>
     </header>
 

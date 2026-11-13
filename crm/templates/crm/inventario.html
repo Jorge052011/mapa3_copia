@@ -385,8 +385,8 @@ body {
     
     <form method="get" class="control-form">
       <div class="form-group">
-        <label class="form-label">Ventana de consumo</label>
-        <input type="number" name="dias" value="{{ dias }}" min="1" max="365" class="form-input">
+        <label for="filtro-dias" class="form-label">Ventana de consumo</label>
+        <input id="filtro-dias" type="number" name="dias" value="{{ dias }}" min="1" max="365" class="form-input">
       </div>
       
       <button class="btn btn-primary" type="submit">✓ Aplicar</button>
@@ -401,53 +401,53 @@ body {
     <table class="metrics-table">
       <tbody>
         <tr>
-          <th><span class="metric-icon">📅</span>Fecha actual</th>
+          <th scope="row"><span class="metric-icon">📅</span>Fecha actual</th>
           <td>{{ hoy|date:"d-m-Y" }}</td>
         </tr>
         
         <tr>
-          <th><span class="metric-icon">📥</span>Kilos ingresados (bruto histórico)</th>
+          <th scope="row"><span class="metric-icon">📥</span>Kilos ingresados (bruto histórico)</th>
           <td>{{ kilos_ingresados_bruto|floatformat:0 }} kg</td>
         </tr>
         
         <tr class="row-merma">
-          <th><span class="metric-icon">⚠️</span>Merma total declarada</th>
+          <th scope="row"><span class="metric-icon">⚠️</span>Merma total declarada</th>
           <td class="value-warning">{{ merma_total|floatformat:0 }} kg</td>
         </tr>
         
         <tr class="row-info">
-          <th><span class="metric-icon">✅</span>Kilos netos disponibles (después de merma)</th>
+          <th scope="row"><span class="metric-icon">✅</span>Kilos netos disponibles (después de merma)</th>
           <td class="value-success">{{ kilos_ingresados_neto|floatformat:0 }} kg</td>
         </tr>
         
         <tr>
-          <th><span class="metric-icon">📤</span>Kilos vendidos (histórico)</th>
+          <th scope="row"><span class="metric-icon">📤</span>Kilos vendidos (histórico)</th>
           <td>{{ kilos_vendidos_total|floatformat:0 }} kg</td>
         </tr>
         
         <!-- Stock actual post-inventario (kg) - obtenido de los ajustes de bolsas -->
         <tr class="row-info">
-          <th><span class="metric-icon">📦</span>Stock de bolsas con ajustes</th>
+          <th scope="row"><span class="metric-icon">📦</span>Stock de bolsas con ajustes</th>
           <td class="value-success" style="font-weight: 700;">{{ stock_actual_post_inventario_kg|floatformat:0 }} kg</td>
         </tr>
 
         <tr class="row-highlight">
-          <th><span class="metric-icon">📦</span>Stock teórico</th>
+          <th scope="row"><span class="metric-icon">📦</span>Stock teórico</th>
           <td class="value-primary value-large" style="font-weight: 400;">{{ stock_kg|floatformat:0 }} kg</td>
         </tr>
         
         <tr class="row-info">
-          <th><span class="metric-icon">📊</span>Kilos vendidos (últimos {{ dias }} días)</th>
+          <th scope="row"><span class="metric-icon">📊</span>Kilos vendidos (últimos {{ dias }} días)</th>
           <td class="value-success">{{ kilos_vendidos_ventana|floatformat:0 }} kg</td>
         </tr>
         
         <tr>
-          <th><span class="metric-icon">📈</span>Consumo promedio diario</th>
+          <th scope="row"><span class="metric-icon">📈</span>Consumo promedio diario</th>
           <td>{{ consumo_diario|floatformat:1 }} kg/día</td>
         </tr>
         
         <tr>
-          <th><span class="metric-icon">⏱️</span>Días de stock estimados</th>
+          <th scope="row"><span class="metric-icon">⏱️</span>Días de stock estimados</th>
           <td>
             {% if dias_stock %}
               <span class="{% if dias_stock < dias_importacion %}value-danger{% elif dias_stock < 30 %}value-warning{% else %}value-success{% endif %} value-large">
@@ -465,7 +465,7 @@ body {
         </tr>
         
         <tr>
-          <th><span class="metric-icon">📉</span>Fecha estimada de agotamiento</th>
+          <th scope="row"><span class="metric-icon">📉</span>Fecha estimada de agotamiento</th>
           <td>
             {% if fecha_reorden_estimada %}
               <span class="{% if dias_stock < dias_importacion %}value-danger{% else %}value-warning{% endif %}">
@@ -478,7 +478,7 @@ body {
         </tr>
         
         <tr class="row-warning">
-          <th>Fecha sugerida para ordenar</th>
+          <th scope="row">Fecha sugerida para ordenar</th>
           <td>
             {% if fecha_orden_sugerida %}
               <span class="value-warning value-large">{{ fecha_orden_sugerida|date:"d-m-Y" }}</span>
@@ -500,7 +500,7 @@ body {
         </tr>
         
         <tr>
-          <th><span class="metric-icon">🚢</span>Lead time de importación</th>
+          <th scope="row"><span class="metric-icon">🚢</span>Lead time de importación</th>
           <td>{{ dias_importacion }} días</td>
         </tr>
       </tbody>

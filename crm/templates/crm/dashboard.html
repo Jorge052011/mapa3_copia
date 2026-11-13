@@ -604,13 +604,13 @@ body {
     <form method="get" class="filters-form">
       <div class="filters-grid">
         <div class="form-group">
-          <label class="form-label">Fecha inicio</label>
-          <input type="date" name="desde" value="{{ desde }}" class="form-input" required>
+          <label for="filtro-desde" class="form-label">Fecha inicio</label>
+          <input id="filtro-desde" type="date" name="desde" value="{{ desde }}" class="form-input" required>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Fecha fin</label>
-          <input type="date" name="hasta" value="{{ hoy }}" class="form-input" required>
+          <label for="filtro-hasta" class="form-label">Fecha fin</label>
+          <input id="filtro-hasta" type="date" name="hasta" value="{{ hoy }}" class="form-input" required>
         </div>
         
         <div class="form-group">
@@ -689,7 +689,7 @@ body {
           <input type="hidden" name="dias" value="{{ request.GET.dias }}">
         {% endif %}
         
-        <select name="mes_diario" style="padding: 8px 12px; border: 2px solid rgba(79, 70, 229, 0.2); border-radius: 8px; background: white; font-size: 14px; font-weight: 600; color: var(--text-dark); cursor: pointer;">
+        <select name="mes_diario" aria-label="Mes a mostrar en las gráficas diarias" style="padding: 8px 12px; border: 2px solid rgba(79, 70, 229, 0.2); border-radius: 8px; background: white; font-size: 14px; font-weight: 600; color: var(--text-dark); cursor: pointer;">
           {% for mes in meses_disponibles %}
             <option value="{{ mes.valor }}" {% if mes.valor == mes_seleccionado %}selected{% endif %}>
               {{ mes.texto }}
@@ -820,10 +820,10 @@ body {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Mes</th>
-            <th>Ventas</th>
-            <th>Kilogramos</th>
-            <th>Ingresos</th>
+            <th scope="col">Mes</th>
+            <th scope="col">Ventas</th>
+            <th scope="col">Kilogramos</th>
+            <th scope="col">Ingresos</th>
           </tr>
         </thead>
         <tbody>

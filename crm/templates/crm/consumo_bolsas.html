@@ -114,12 +114,12 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
     <form method="get">
       <div class="filter-grid">
         <div class="form-group">
-          <label class="form-label">Fecha inicio</label>
-          <input type="date" name="desde" value="{{ desde }}" class="form-input">
+          <label for="filtro-desde" class="form-label">Fecha inicio</label>
+          <input id="filtro-desde" type="date" name="desde" value="{{ desde }}" class="form-input">
         </div>
         <div class="form-group">
-          <label class="form-label">Fecha fin</label>
-          <input type="date" name="hasta" value="{{ hasta }}" class="form-input">
+          <label for="filtro-hasta" class="form-label">Fecha fin</label>
+          <input id="filtro-hasta" type="date" name="hasta" value="{{ hasta }}" class="form-input">
         </div>
         <div class="form-group">
           <button type="submit" class="btn-filter">🔍 Filtrar período</button>
@@ -188,12 +188,12 @@ body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:1
       <table class="data-table">
         <thead>
           <tr>
-            <th>SKU</th>
-            <th>Producto</th>
-            <th>Tipo doc.</th>
-            <th>Unidades</th>
+            <th scope="col">SKU</th>
+            <th scope="col">Producto</th>
+            <th scope="col">Tipo doc.</th>
+            <th scope="col">Unidades</th>
             {% for material in data.materiales %}
-              <th>B{{ material.peso_kg|floatformat:0 }} {{ material.nombre }}</th>
+              <th scope="col">B{{ material.peso_kg|floatformat:0 }} {{ material.nombre }}</th>
             {% endfor %}
           </tr>
         </thead>

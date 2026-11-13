@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CRM{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=99">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <h1>Gestión Comercial</h1>
+        <nav class="main-nav">
+          <a href="{% url 'crm:crear_cliente' %}"
+            class="{% if request.resolver_match.url_name == 'crear_cliente' %}active{% endif %}">
+            ➕ Crear cliente
+          </a>
+
+          <a href="{% url 'crm:clientes_list' %}"
+            class="{% if request.resolver_match.url_name == 'clientes_list' %}active{% endif %}">
+            Clientes
+          </a>
+          <a href="{% url 'crm:ventas_list' %}"
+            class="{% if request.resolver_match.url_name == 'ventas_list' %}active{% endif %}">
+            💰 Ventas
+          </a>
+
+          <a href="{% url 'crm:buscar_cliente_telefono' %}"
+             class="{% if request.resolver_match.url_name == 'buscar_cliente_telefono' %}active{% endif %}">
+             🔎 Buscar teléfono
+          </a>
+          
+          <a href="{% url 'crm:resumen_mensual' %}"
+            class="{% if request.resolver_match.url_name == 'resumen_mensual' %}active{% endif %}">
+            📊 Resumen mensual
+          </a>
+          <a href="{% url 'crm:dashboard' %}">📊 Dashboard</a>
+          <a class="btn btn-secondary" href="{% url 'crm:inventario' %}">📦 Inventario</a>
+          <a href="{% url 'crm:consumo_bolsas' %}" class="btn-inventario">
+            📦 Inventario bolsas
+          </a>
+
+
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Logística Jimacomex SpA </p>
+    </footer>
+
+    <!-- ✅ Modal confirmación -->
+    <div id="confirmModal" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <h3 id="confirmTitle">Confirmar</h3>
+        <p id="confirmText">¿Seguro?</p>
+        <div class="modal-actions">
+          <button id="btnCancel" class="btn-cancel" type="button">Cancelar</button>
+          <button id="btnConfirm" class="btn-danger" type="button">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
