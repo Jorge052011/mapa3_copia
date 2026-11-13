@@ -853,26 +853,41 @@ body {
 {% endblock %}
 
 {% block extra_js %}
+{{ labels_mes|json_script:"labels-mes" }}
+{{ ingresos_mes|json_script:"ingresos-mes" }}
+{{ kilos_mes|json_script:"kilos-mes" }}
+{{ canal_labels|json_script:"canal-labels" }}
+{{ canal_ingresos|json_script:"canal-ingresos" }}
+{{ prod_labels|json_script:"prod-labels" }}
+{{ prod_kilos|json_script:"prod-kilos" }}
+{{ dias_labels|json_script:"dias-labels" }}
+{{ cantidad_por_dia|json_script:"cantidad-por-dia" }}
+{{ valor_por_dia|json_script:"valor-por-dia" }}
+{{ cantidad_first_por_dia|json_script:"cantidad-first-por-dia" }}
+{{ valor_first_por_dia|json_script:"valor-first-por-dia" }}
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-  const labelsMes   = {{ labels_mes_json|safe }};
-  const ingresosMes = {{ ingresos_mes_json|safe }};
-  const kilosMes    = {{ kilos_mes_json|safe }};
+  const jsonData = (id) => JSON.parse(document.getElementById(id).textContent);
 
-  const canalLabels   = {{ canal_labels_json|safe }};
-  const canalIngresos = {{ canal_ingresos_json|safe }};
+  const labelsMes   = jsonData("labels-mes");
+  const ingresosMes = jsonData("ingresos-mes");
+  const kilosMes    = jsonData("kilos-mes");
 
-  const prodLabels = {{ prod_labels_json|safe }};
-  const prodKilos  = {{ prod_kilos_json|safe }};
-  
-  const diasLabels = {{ dias_labels_json|safe }};
-  const cantidadPorDia = {{ cantidad_por_dia_json|safe }};
-  const valorPorDia = {{ valor_por_dia_json|safe }};
+  const canalLabels   = jsonData("canal-labels");
+  const canalIngresos = jsonData("canal-ingresos");
+
+  const prodLabels = jsonData("prod-labels");
+  const prodKilos  = jsonData("prod-kilos");
+
+  const diasLabels = jsonData("dias-labels");
+  const cantidadPorDia = jsonData("cantidad-por-dia");
+  const valorPorDia = jsonData("valor-por-dia");
 
   // ✅ NUEVO: series “primeras compras”
-  const cantidadFirstPorDia = {{ cantidad_first_por_dia_json|safe }};
-  const valorFirstPorDia = {{ valor_first_por_dia_json|safe }};
+  const cantidadFirstPorDia = jsonData("cantidad-first-por-dia");
+  const valorFirstPorDia = jsonData("valor-first-por-dia");
 
   const gradientColors = {
     primary: ['rgba(79, 70, 229, 0.8)', 'rgba(79, 70, 229, 0.2)'],
