@@ -82,22 +82,18 @@ def recibido_contenedor(importacion, tipo_bolsa=None):
     return resultado
 
 
-def _analisis_ventas_contenedor(movimientos, total_kg_recibido, hoy=None):
+def _analisis_ventas_contenedor(
+    movimientos, total_kg_recibido, fecha_inicio, hoy=None
+):
     hoy = hoy or timezone.localdate()
     tipos_bolsa = {}
     total_kg = Decimal("0")
-    primera_salida = None
 
     for mov in movimientos:
         cantidad = mov.cantidad or 0
         material = mov.tipo_bolsa
         kg = Decimal(cantidad) * (material.peso_kg or Decimal("0"))
         total_kg += kg
-
-        if cantidad > 0:
-            fecha_mov = timezone.localtime(mov.creado_en).date()
-            if primera_salida is None or fecha_mov < primera_salida:
-                primera_salida = fecha_mov
 
         fila = tipos_bolsa.setdefault(
             material.codigo,
@@ -119,8 +115,8 @@ def _analisis_ventas_contenedor(movimientos, total_kg_recibido, hoy=None):
     )
     total_bolsas = sum(fila["bolsas"] for fila in filas)
 
-    if primera_salida:
-        dias = max((hoy - primera_salida).days + 1, 1)
+    if fecha_inicio:
+        dias = max((hoy - fecha_inicio).days + 1, 1)
     else:
         dias = 0
 
@@ -161,7 +157,7 @@ def _analisis_ventas_contenedor(movimientos, total_kg_recibido, hoy=None):
         "kg_recibidos": total_kg_recibido,
         "avance_pct": avance_pct,
         "velocidad_kg_dia": velocidad_kg_dia,
-        "primera_salida": primera_salida,
+        "fecha_inicio": fecha_inicio,
         "dias": dias,
     }
 
@@ -216,6 +212,7 @@ def resumen_contenedor(importacion, hoy=None):
     analisis = _analisis_ventas_contenedor(
         movimientos,
         total_kg_recibido,
+        fecha_inicio=importacion.fecha,
         hoy=hoy,
     )
 

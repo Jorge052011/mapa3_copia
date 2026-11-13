@@ -1485,6 +1485,30 @@ class AnalisisVentasContenedorTestCase(TrazabilidadBaseTestCase):
         self.assertEqual(fila_8["kg"], Decimal("24.00"))
         self.assertEqual(fila_8["porcentaje"], Decimal("37.5"))
 
+    def test_velocidad_usa_fecha_inicio_del_contenedor(self):
+        self._crear_venta_dos_productos()
+
+        analisis = resumen_contenedor(
+            self.importacion_a,
+            hoy=date(2026, 11, 13),
+        )["analisis"]
+
+        self.assertEqual(analisis["fecha_inicio"], date(2026, 10, 29))
+        self.assertEqual(analisis["dias"], 16)
+        self.assertEqual(analisis["velocidad_kg_dia"], Decimal("4.00"))
+
+        fila_20 = next(
+            fila for fila in analisis["filas"]
+            if fila["codigo"] == "20_lav"
+        )
+        fila_8 = next(
+            fila for fila in analisis["filas"]
+            if fila["codigo"] == "8_lav"
+        )
+
+        self.assertEqual(fila_20["velocidad_kg_dia"], Decimal("2.50"))
+        self.assertEqual(fila_8["velocidad_kg_dia"], Decimal("1.50"))
+
     def test_devolucion_descuenta_kg_del_tipo_bolsa(self):
         _, _, item_8 = self._crear_venta_dos_productos()
         registrar_devolucion_fisica(
