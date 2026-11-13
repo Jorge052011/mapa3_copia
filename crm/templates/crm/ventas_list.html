@@ -258,7 +258,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="11" style="padding: 20px; text-align: center; color: #999;">
+            <td colspan="12" style="padding: 20px; text-align: center; color: #999;">
                 {% if f.buscar_cliente %}
                     No se encontraron ventas para el cliente "{{ f.buscar_cliente }}"
                 {% else %}
@@ -425,8 +425,8 @@
 {% if ventas.has_other_pages %}
 <div class="pagination" style="margin-top: 20px; text-align: center;">
     {% if ventas.has_previous %}
-        <a href="?page=1{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">&laquo; primera</a>
-        <a href="?page={{ ventas.previous_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">anterior</a>
+        <a href="?page=1{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">&laquo; primera</a>
+        <a href="?page={{ ventas.previous_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">anterior</a>
     {% endif %}
 
     <span style="margin: 0 15px;">
@@ -434,8 +434,8 @@
     </span>
 
     {% if ventas.has_next %}
-        <a href="?page={{ ventas.next_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">siguiente</a>
-        <a href="?page={{ ventas.paginator.num_pages }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">última &raquo;</a>
+        <a href="?page={{ ventas.next_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">siguiente</a>
+        <a href="?page={{ ventas.paginator.num_pages }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">última &raquo;</a>
     {% endif %}
 </div>
 {% endif %}

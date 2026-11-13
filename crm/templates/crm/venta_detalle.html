@@ -287,8 +287,6 @@
       const sugerido = opt ? (opt.getAttribute("data-precio") || "") : "";
       const actual = (precio.value || "").trim();
 
-      console.log("Producto:", opt ? opt.text : "(none)", "data-precio:", sugerido);
-
       // Si no hay sugerido, no rellenamos
       if (sugerido === "" || sugerido === "None") return;
 

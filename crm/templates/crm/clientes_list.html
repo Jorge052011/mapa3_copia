@@ -174,8 +174,8 @@
 {% if clientes.has_other_pages %}
 <div class="pagination" style="margin-top: 20px; text-align: center;">
     {% if clientes.has_previous %}
-        <a href="?page=1{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">&laquo; primera</a>
-        <a href="?page={{ clientes.previous_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">anterior</a>
+        <a href="?page=1{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">&laquo; primera</a>
+        <a href="?page={{ clientes.previous_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">anterior</a>
     {% endif %}
 
     <span style="margin: 0 15px;">
@@ -183,8 +183,8 @@
     </span>
 
     {% if clientes.has_next %}
-        <a href="?page={{ clientes.next_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">siguiente</a>
-        <a href="?page={{ clientes.paginator.num_pages }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">última &raquo;</a>
+        <a href="?page={{ clientes.next_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">siguiente</a>
+        <a href="?page={{ clientes.paginator.num_pages }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">última &raquo;</a>
     {% endif %}
 </div>
 {% endif %}

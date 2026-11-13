@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CRM{% endblock %}</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=99">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=100">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -51,7 +51,7 @@
             class="{% if u == 'dashboard' %}active{% endif %}"
             {% if u == 'dashboard' %}aria-current="page"{% endif %}>📊 Dashboard</a>
           <a class="btn btn-secondary" href="{% url 'crm:inventario' %}">📦 Inventario</a>
-          <a href="{% url 'crm:consumo_bolsas' %}" class="btn-inventario">
+          <a href="{% url 'crm:consumo_bolsas' %}">
             📦 Inventario bolsas
           </a>
           <a href="{% url 'crm:ingresos_material' %}"
@@ -85,20 +85,8 @@
     </main>
 
     <footer>
-        <p>&copy; 2025 Logística Jimacomex SpA </p>
+        <p>&copy; {% now "Y" %} Logística Jimacomex SpA </p>
     </footer>
-
-    <!-- ✅ Modal confirmación -->
-    <div id="confirmModal" class="modal-overlay hidden" aria-hidden="true">
-      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-        <h3 id="confirmTitle">Confirmar</h3>
-        <p id="confirmText">¿Seguro?</p>
-        <div class="modal-actions">
-          <button id="btnCancel" class="btn-cancel" type="button">Cancelar</button>
-          <button id="btnConfirm" class="btn-danger" type="button">Aceptar</button>
-        </div>
-      </div>
-    </div>
 
     {% block extra_js %}{% endblock %}
 </body>

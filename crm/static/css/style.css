@@ -64,9 +64,9 @@ header h1 {
 
 /* Activo */
 .main-nav a.active {
-  background: #28a745;
+  background: #1e7e34;
   color: #ffffff;
-  border-color: #28a745;
+  border-color: #1e7e34;
 }
 
 /* =========================
@@ -130,7 +130,7 @@ input[type="number"] {
 
 /* Botón submit */
 button[type="submit"] {
-  background-color: #28a745;
+  background-color: #1e7e34;
   color: white;
   padding: 12px 22px;
   border: none;
@@ -142,7 +142,7 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover {
-  background-color: #218838;
+  background-color: #19692c;
 }
 
 /* =========================
@@ -202,31 +202,6 @@ MAP
 }
 
 /* =========================
-MODAL
-========================= */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-box {
-  background: white;
-  padding: 22px;
-  border-radius: 10px;
-  max-width: 420px;
-  width: 100%;
-}
-
-.hidden {
-  display: none;
-}
-
-/* =========================
 FOOTER
 ========================= */
 footer {
@@ -257,11 +232,11 @@ BOTONES GENERALES
 
 /* Botón crear */
 .btn-primary {
-  background: #0d6efd;
+  background: #0a58ca;
   color: #ffffff;
 }
 .btn-primary:hover {
-  background: #0b5ed7;
+  background: #084298;
 }
 
 .btn-secondary {
@@ -368,11 +343,11 @@ ACCIONES CRM
 
 /* Editar */
 .btn-edit {
-  background: #0d6efd;
+  background: #0a58ca;
   color: #ffffff;
 }
 .btn-edit:hover {
-  background: #0b5ed7;
+  background: #084298;
 }
 
 /* Borrar */
