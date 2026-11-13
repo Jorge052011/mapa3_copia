@@ -2,7 +2,6 @@
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta, date
 from dateutil.relativedelta import relativedelta
-import json
 import logging
 from calendar import monthrange
 
@@ -747,28 +746,28 @@ def dashboard(request):
         "por_canal": list(por_canal_qs),
         "top_productos": list(top_productos_qs),
 
-        "labels_mes_json": json.dumps(labels_mes),
-        "ingresos_mes_json": json.dumps(ingresos_mes),
-        "kilos_mes_json": json.dumps(kilos_mes),
-        "ventas_mes_json": json.dumps(ventas_mes),
+        "labels_mes": labels_mes,
+        "ingresos_mes": ingresos_mes,
+        "kilos_mes": kilos_mes,
+        "ventas_mes": ventas_mes,
 
-        "canal_labels_json": json.dumps(canal_labels),
-        "canal_ingresos_json": json.dumps(canal_ingresos),
+        "canal_labels": canal_labels,
+        "canal_ingresos": canal_ingresos,
 
-        "prod_labels_json": json.dumps(prod_labels),
-        "prod_kilos_json": json.dumps(prod_kilos),
+        "prod_labels": prod_labels,
+        "prod_kilos": prod_kilos,
 
-        # ✅ JSON diario actual
-        "dias_labels_json": json.dumps(dias_labels),
-        "cantidad_por_dia_json": json.dumps(cantidad_por_dia),
-        "valor_por_dia_json": json.dumps(valor_por_dia),
+        # ✅ series diarias
+        "dias_labels": dias_labels,
+        "cantidad_por_dia": cantidad_por_dia,
+        "valor_por_dia": valor_por_dia,
         "mes_actual": mes_seleccionado.strftime("%B %Y"),
         "total_cantidad_mes": total_cantidad_mes,
         "total_valor_mes": int(total_valor_mes),
 
-        # ✅ NUEVO JSON: first-time
-        "cantidad_first_por_dia_json": json.dumps(cantidad_first_por_dia),
-        "valor_first_por_dia_json": json.dumps(valor_first_por_dia),
+        # ✅ NUEVO: first-time
+        "cantidad_first_por_dia": cantidad_first_por_dia,
+        "valor_first_por_dia": valor_first_por_dia,
         "total_first_cantidad_mes": total_first_cantidad_mes,
         "total_first_valor_mes": int(total_first_valor_mes),
 
@@ -1212,6 +1211,7 @@ def inventario(request):
         return redirect("crm:dashboard")
 
 
+@login_required
 def consumo_bolsas_view(request):
     from django.utils.dateparse import parse_date
     from .services_inventario import consumo_bolsas, inventario_bolsas_actual

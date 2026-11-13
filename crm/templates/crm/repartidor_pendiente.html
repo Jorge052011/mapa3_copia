@@ -2,12 +2,13 @@
 {% block content %}
 <h2>Efectivo Pendiente por Repartidor</h2>
 
-<table style="width: 100%; border-collapse: collapse; min-width: 600px; margin-top: 20px;">
+<div class="table-wrap">
+<table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
     <thead>
         <tr style="background-color: #f0f0f0;">
-            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Repartidor</th>
-            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Ventas Pendientes</th>
-            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Total Efectivo Pendiente</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd; text-align: left;">Repartidor</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd; text-align: center;">Ventas Pendientes</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd; text-align: right;">Total Efectivo Pendiente</th>
         </tr>
     </thead>
     <tbody>
@@ -47,6 +48,7 @@
         {% endif %}
     </tbody>
 </table>
+</div>
 
 <p style="margin-top: 20px; font-size: 13px;">
     <a href="{% url 'crm:ventas_list' %}?modo_pago=efectivo&deposito_estado=pendiente"

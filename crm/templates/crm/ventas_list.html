@@ -187,18 +187,18 @@
 <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
     <thead>
         <tr style="background-color: #f0f0f0;">
-            <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Cliente</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Fecha</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Tipo Doc.</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">N° Doc.</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Canal</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Repartidor</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Modo pago</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Incluir en depósito</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Monto</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Acciones</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">ID</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Cliente</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Fecha</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Tipo Doc.</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">N° Doc.</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Canal</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Repartidor</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Modo pago</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Incluir en depósito</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Kilos</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Monto</th>
+            <th scope="col" style="padding: 10px; border: 1px solid #ddd;">Acciones</th>
         </tr>
     </thead>
     <tbody>
@@ -258,7 +258,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="11" style="padding: 20px; text-align: center; color: #999;">
+            <td colspan="12" style="padding: 20px; text-align: center; color: #999;">
                 {% if f.buscar_cliente %}
                     No se encontraron ventas para el cliente "{{ f.buscar_cliente }}"
                 {% else %}
@@ -425,8 +425,8 @@
 {% if ventas.has_other_pages %}
 <div class="pagination" style="margin-top: 20px; text-align: center;">
     {% if ventas.has_previous %}
-        <a href="?page=1{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">&laquo; primera</a>
-        <a href="?page={{ ventas.previous_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">anterior</a>
+        <a href="?page=1{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">&laquo; primera</a>
+        <a href="?page={{ ventas.previous_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">anterior</a>
     {% endif %}
 
     <span style="margin: 0 15px;">
@@ -434,8 +434,8 @@
     </span>
 
     {% if ventas.has_next %}
-        <a href="?page={{ ventas.next_page_number }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">siguiente</a>
-        <a href="?page={{ ventas.paginator.num_pages }}{% for key, value in f.items %}&{{ key }}={{ value }}{% endfor %}">última &raquo;</a>
+        <a href="?page={{ ventas.next_page_number }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">siguiente</a>
+        <a href="?page={{ ventas.paginator.num_pages }}{% for key, value in f.items %}{% if value %}&{{ key|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}">última &raquo;</a>
     {% endif %}
 </div>
 {% endif %}

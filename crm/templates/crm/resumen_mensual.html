@@ -246,7 +246,7 @@ body {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1400px;
+  min-width: 1100px;
   font-size: 13px;
 }
 
@@ -453,12 +453,6 @@ body {
 {% block content %}
 <div class="resumen-container">
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-
   <!-- Header -->
   <div class="page-header">
     <h1>Resumen Financiero Mensual</h1>
@@ -475,13 +469,13 @@ body {
     <form method="get" class="filters-form">
       <div class="filters-grid">
         <div class="form-group">
-          <label class="form-label">Fecha inicio</label>
-          <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-input" required>
+          <label for="filtro-desde" class="form-label">Fecha inicio</label>
+          <input id="filtro-desde" type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-input" required>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Fecha fin</label>
-          <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-input" required>
+          <label for="filtro-hasta" class="form-label">Fecha fin</label>
+          <input id="filtro-hasta" type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-input" required>
         </div>
         
         <div class="form-group">
@@ -524,7 +518,7 @@ body {
   </div>
 
   <!-- Tabla editable -->
-  <form method="post" action="">
+  <form method="post" action="{% url 'crm:resumen_mensual' %}">
     {% csrf_token %}
     <input type="hidden" name="desde" value="{{ desde|date:'Y-m-d' }}">
     <input type="hidden" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
@@ -539,18 +533,18 @@ body {
         <table class="data-table">
           <thead>
             <tr>
-              <th>Mes</th>
-              <th class="col-center">Ventas</th>
-              <th class="col-right">Kilos</th>
-              <th class="col-right">Costo $/kg<br><small>manual</small></th>
-              <th class="col-right">Ventas brutas con IVA</th>
-              <th class="col-right">Notas crédito con IVA</th>
-              <th class="col-right">Ventas netas con IVA</th>
-              <th class="col-right">Neto real sin IVA</th>
-              <th class="col-right">Costo estimado sin IVA</th>
-              <th class="col-right">Margen bruto sin IVA</th>
-              <th class="col-right">Gastos sin IVA</th>
-              <th class="col-right">Utilidad sin IVA</th>
+              <th scope="col">Mes</th>
+              <th scope="col" class="col-center">Ventas</th>
+              <th scope="col" class="col-right">Kilos</th>
+              <th scope="col" class="col-right">Costo $/kg<br><small>manual</small></th>
+              <th scope="col" class="col-right">Ventas brutas con IVA</th>
+              <th scope="col" class="col-right">Notas crédito con IVA</th>
+              <th scope="col" class="col-right">Ventas netas con IVA</th>
+              <th scope="col" class="col-right">Neto real sin IVA</th>
+              <th scope="col" class="col-right">Costo estimado sin IVA</th>
+              <th scope="col" class="col-right">Margen bruto sin IVA</th>
+              <th scope="col" class="col-right">Gastos sin IVA</th>
+              <th scope="col" class="col-right">Utilidad sin IVA</th>
             </tr>
           </thead>
 
@@ -565,6 +559,7 @@ body {
                   type="number"
                   class="costo-input"
                   name="costo_{{ f.mes|date:'Y-m' }}"
+                  aria-label="Costo por kg de {{ f.mes|date:'m-Y' }}"
                   value="{% if f.usa_costo_manual %}{{ f.costo_kg_manual|floatformat:'2u' }}{% endif %}"
                   step="0.01"
                   min="0"
@@ -608,18 +603,18 @@ body {
 
           <tfoot>
             <tr>
-              <th>TOTALES</th>
-              <th>—</th>
-              <th class="col-right">{{ totales.kilos|floatformat:0 }}</th>
-              <th>—</th>
-              <th class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.neto|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.costo|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.margen_bruto|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.gastos|floatformat:0 }}</th>
-              <th class="col-right">$ {{ totales.utilidad|floatformat:0 }}</th>
+              <th scope="col">TOTALES</th>
+              <th scope="col">—</th>
+              <th scope="col" class="col-right">{{ totales.kilos|floatformat:0 }}</th>
+              <th scope="col">—</th>
+              <th scope="col" class="col-right">$ {{ totales.ventas_brutas|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.notas_credito|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.ventas_netas|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.neto|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.costo|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.margen_bruto|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.gastos|floatformat:0 }}</th>
+              <th scope="col" class="col-right">$ {{ totales.utilidad|floatformat:0 }}</th>
             </tr>
           </tfoot>
         </table>

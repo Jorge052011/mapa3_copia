@@ -604,13 +604,13 @@ body {
     <form method="get" class="filters-form">
       <div class="filters-grid">
         <div class="form-group">
-          <label class="form-label">Fecha inicio</label>
-          <input type="date" name="desde" value="{{ desde }}" class="form-input" required>
+          <label for="filtro-desde" class="form-label">Fecha inicio</label>
+          <input id="filtro-desde" type="date" name="desde" value="{{ desde }}" class="form-input" required>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Fecha fin</label>
-          <input type="date" name="hasta" value="{{ hoy }}" class="form-input" required>
+          <label for="filtro-hasta" class="form-label">Fecha fin</label>
+          <input id="filtro-hasta" type="date" name="hasta" value="{{ hoy }}" class="form-input" required>
         </div>
         
         <div class="form-group">
@@ -689,7 +689,7 @@ body {
           <input type="hidden" name="dias" value="{{ request.GET.dias }}">
         {% endif %}
         
-        <select name="mes_diario" style="padding: 8px 12px; border: 2px solid rgba(79, 70, 229, 0.2); border-radius: 8px; background: white; font-size: 14px; font-weight: 600; color: var(--text-dark); cursor: pointer;">
+        <select name="mes_diario" aria-label="Mes a mostrar en las gráficas diarias" style="padding: 8px 12px; border: 2px solid rgba(79, 70, 229, 0.2); border-radius: 8px; background: white; font-size: 14px; font-weight: 600; color: var(--text-dark); cursor: pointer;">
           {% for mes in meses_disponibles %}
             <option value="{{ mes.valor }}" {% if mes.valor == mes_seleccionado %}selected{% endif %}>
               {{ mes.texto }}
@@ -820,10 +820,10 @@ body {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Mes</th>
-            <th>Ventas</th>
-            <th>Kilogramos</th>
-            <th>Ingresos</th>
+            <th scope="col">Mes</th>
+            <th scope="col">Ventas</th>
+            <th scope="col">Kilogramos</th>
+            <th scope="col">Ingresos</th>
           </tr>
         </thead>
         <tbody>
@@ -853,26 +853,52 @@ body {
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ labels_mes|json_script:"labels-mes" }}
+{{ ingresos_mes|json_script:"ingresos-mes" }}
+{{ kilos_mes|json_script:"kilos-mes" }}
+{{ canal_labels|json_script:"canal-labels" }}
+{{ canal_ingresos|json_script:"canal-ingresos" }}
+{{ prod_labels|json_script:"prod-labels" }}
+{{ prod_kilos|json_script:"prod-kilos" }}
+{{ dias_labels|json_script:"dias-labels" }}
+{{ cantidad_por_dia|json_script:"cantidad-por-dia" }}
+{{ valor_por_dia|json_script:"valor-por-dia" }}
+{{ cantidad_first_por_dia|json_script:"cantidad-first-por-dia" }}
+{{ valor_first_por_dia|json_script:"valor-first-por-dia" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
-  const labelsMes   = {{ labels_mes_json|safe }};
-  const ingresosMes = {{ ingresos_mes_json|safe }};
-  const kilosMes    = {{ kilos_mes_json|safe }};
+(() => {
+  if (!window.Chart) {
+    document.querySelectorAll("canvas").forEach((canvas) => {
+      const msg = document.createElement("p");
+      msg.className = "empty-state";
+      msg.textContent = "No se pudieron cargar las gráficas.";
+      canvas.replaceWith(msg);
+    });
+    return;
+  }
 
-  const canalLabels   = {{ canal_labels_json|safe }};
-  const canalIngresos = {{ canal_ingresos_json|safe }};
+  const jsonData = (id) => JSON.parse(document.getElementById(id).textContent);
 
-  const prodLabels = {{ prod_labels_json|safe }};
-  const prodKilos  = {{ prod_kilos_json|safe }};
-  
-  const diasLabels = {{ dias_labels_json|safe }};
-  const cantidadPorDia = {{ cantidad_por_dia_json|safe }};
-  const valorPorDia = {{ valor_por_dia_json|safe }};
+  const labelsMes   = jsonData("labels-mes");
+  const ingresosMes = jsonData("ingresos-mes");
+  const kilosMes    = jsonData("kilos-mes");
+
+  const canalLabels   = jsonData("canal-labels");
+  const canalIngresos = jsonData("canal-ingresos");
+
+  const prodLabels = jsonData("prod-labels");
+  const prodKilos  = jsonData("prod-kilos");
+
+  const diasLabels = jsonData("dias-labels");
+  const cantidadPorDia = jsonData("cantidad-por-dia");
+  const valorPorDia = jsonData("valor-por-dia");
 
   // ✅ NUEVO: series “primeras compras”
-  const cantidadFirstPorDia = {{ cantidad_first_por_dia_json|safe }};
-  const valorFirstPorDia = {{ valor_first_por_dia_json|safe }};
+  const cantidadFirstPorDia = jsonData("cantidad-first-por-dia");
+  const valorFirstPorDia = jsonData("valor-first-por-dia");
 
   const gradientColors = {
     primary: ['rgba(79, 70, 229, 0.8)', 'rgba(79, 70, 229, 0.2)'],
@@ -1224,5 +1250,6 @@ body {
       }
     }
   });
+})();
 </script>
 {% endblock %}

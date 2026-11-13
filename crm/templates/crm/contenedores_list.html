@@ -30,12 +30,12 @@
       <table>
         <thead>
           <tr>
-            <th>Tipo de bolsa</th>
-            <th>Recibido</th>
-            <th>Asignado</th>
-            <th>Devuelto / revertido</th>
-            <th>Saldo del contenedor</th>
-            <th>Peso del saldo (kg)</th>
+            <th scope="col">Tipo de bolsa</th>
+            <th scope="col">Recibido</th>
+            <th scope="col">Asignado</th>
+            <th scope="col">Devuelto / revertido</th>
+            <th scope="col">Saldo del contenedor</th>
+            <th scope="col">Peso del saldo (kg)</th>
           </tr>
         </thead>
         <tbody>
@@ -52,8 +52,8 @@
         </tbody>
         <tfoot>
           <tr>
-            <th colspan="5" style="text-align:right;">Total</th>
-            <th>{{ resumen.total_peso_saldo_kg|floatformat:"-2" }} kg</th>
+            <th scope="col" colspan="5" style="text-align:right;">Total</th>
+            <th scope="col">{{ resumen.total_peso_saldo_kg|floatformat:"-2" }} kg</th>
           </tr>
         </tfoot>
       </table>

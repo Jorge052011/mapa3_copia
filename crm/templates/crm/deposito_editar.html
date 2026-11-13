@@ -29,19 +29,19 @@
   <table>
     <thead>
       <tr>
-        <th>Incluir</th>
-        <th>Venta</th>
-        <th>Fecha</th>
-        <th>Cliente</th>
-        <th>Monto</th>
-        <th>Estado</th>
+        <th scope="col">Incluir</th>
+        <th scope="col">Venta</th>
+        <th scope="col">Fecha</th>
+        <th scope="col">Cliente</th>
+        <th scope="col">Monto</th>
+        <th scope="col">Estado</th>
       </tr>
     </thead>
     <tbody>
       {% for venta in ventas_asociadas %}
       <tr>
         <td>
-          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}" checked>
+          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}" aria-label="Incluir venta #{{ venta.id }} en el depósito" checked>
         </td>
         <td>#{{ venta.id }}</td>
         <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
@@ -54,7 +54,7 @@
       {% for venta in ventas_disponibles %}
       <tr>
         <td>
-          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}">
+          <input type="checkbox" name="ventas_ids" value="{{ venta.id }}" aria-label="Incluir venta #{{ venta.id }} en el depósito">
         </td>
         <td>#{{ venta.id }}</td>
         <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
