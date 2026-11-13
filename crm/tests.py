@@ -40,6 +40,7 @@ from .services_trazabilidad import (
     importaciones_recepcionables,
     pendiente_item,
     registrar_devolucion_fisica,
+    resumen_contenedor,
     revertir_movimiento,
     saldo_contenedor,
     ventas_con_trazabilidad_pendiente,
@@ -1404,3 +1405,119 @@ class Fase21EndurecimientoTestCase(TrazabilidadBaseTestCase):
             instance=historico,
         )
         self.assertTrue(form_historico.is_valid(), form_historico.errors)
+
+
+class AnalisisVentasContenedorTestCase(TrazabilidadBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.material_8_lav = Material.objects.get_or_create(
+            codigo="8_lav",
+            defaults={
+                "nombre": "Lavanda 8 kg",
+                "peso_kg": Decimal("8.00"),
+            },
+        )[0]
+        self.producto_8 = Producto.objects.create(
+            sku="8",
+            nombre="Lavanda 8 kg",
+            peso_kg=Decimal("8.00"),
+        )
+        ProductoMaterial.objects.get_or_create(
+            producto=self.producto_8,
+            material=self.material_8_lav,
+            defaults={"cantidad": 1},
+        )
+        IngresoMaterial.objects.create(
+            fecha=self.importacion_a.fecha,
+            importacion=self.importacion_a,
+            tipo_bolsa=self.material_8_lav,
+            cantidad=100,
+            control_contenedor=True,
+        )
+
+    def _crear_venta_dos_productos(self):
+        venta = Venta.objects.create(
+            cliente=self.cliente,
+            fecha=self.fecha_venta,
+        )
+        item_20 = VentaItem.objects.create(
+            venta=venta,
+            producto=self.producto,
+            cantidad=2,
+            precio_unitario=Decimal("1000.00"),
+        )
+        item_8 = VentaItem.objects.create(
+            venta=venta,
+            producto=self.producto_8,
+            cantidad=3,
+            precio_unitario=Decimal("500.00"),
+        )
+        asignar_bolsas(
+            item_20, self.importacion_a, "20_lav", 2, usuario=self.user
+        )
+        asignar_bolsas(
+            item_8, self.importacion_a, "8_lav", 3, usuario=self.user
+        )
+        return venta, item_20, item_8
+
+    def test_calcula_kg_porcentaje_y_lider(self):
+        self._crear_venta_dos_productos()
+        analisis = resumen_contenedor(
+            self.importacion_a, hoy=timezone.localdate()
+        )["analisis"]
+
+        self.assertTrue(analisis["hay_ventas"])
+        self.assertEqual(analisis["total_kg"], Decimal("64.00"))
+        self.assertEqual(analisis["total_bolsas"], 5)
+        self.assertEqual(analisis["kg_recibidos"], Decimal("2800.00"))
+        self.assertEqual(analisis["avance_pct"], Decimal("2.3"))
+        self.assertEqual(analisis["lider"]["nombre"], self.material_20_lav.nombre)
+        self.assertEqual(analisis["lider"]["porcentaje"], Decimal("62.5"))
+        self.assertEqual(analisis["lider"]["kg"], Decimal("40.00"))
+        self.assertTrue(analisis["filas"][0]["es_lider"])
+
+        fila_8 = next(
+            fila
+            for fila in analisis["filas"]
+            if fila["codigo"] == "8_lav"
+        )
+        self.assertEqual(fila_8["kg"], Decimal("24.00"))
+        self.assertEqual(fila_8["porcentaje"], Decimal("37.5"))
+
+    def test_devolucion_descuenta_kg_del_tipo_bolsa(self):
+        _, _, item_8 = self._crear_venta_dos_productos()
+        registrar_devolucion_fisica(
+            item_8,
+            self.importacion_a,
+            "8_lav",
+            1,
+            usuario=self.user,
+        )
+        analisis = resumen_contenedor(
+            self.importacion_a, hoy=timezone.localdate()
+        )["analisis"]
+
+        self.assertEqual(analisis["total_kg"], Decimal("56.00"))
+        fila_8 = next(
+            fila
+            for fila in analisis["filas"]
+            if fila["codigo"] == "8_lav"
+        )
+        self.assertEqual(fila_8["kg"], Decimal("16.00"))
+        self.assertEqual(analisis["lider"]["porcentaje"], Decimal("71.4"))
+
+    def test_paginas_muestran_ventas_del_contenedor(self):
+        self._crear_venta_dos_productos()
+        respuesta = self.client.get("/crm/inventario/contenedores/")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Ventas del contenedor")
+        self.assertContains(respuesta, "Tipo de bolsa líder")
+        self.assertContains(respuesta, self.material_20_lav.nombre)
+
+        respuesta = self.client.get(
+            f"/crm/inventario/contenedores/{self.importacion_a.id}/"
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Ventas del contenedor")
+        self.assertContains(respuesta, "Kg vendidos")

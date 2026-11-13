@@ -1,0 +1,78 @@
+{% if analisis.hay_ventas %}
+  <div class="ventas-analisis">
+    <h4 class="analisis-title">Ventas del contenedor</h4>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Kg vendidos</span>
+        <strong class="kpi-value">{{ analisis.total_kg|floatformat:"-2" }} kg</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Bolsas netas</span>
+        <strong class="kpi-value">{{ analisis.total_bolsas }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Velocidad</span>
+        <strong class="kpi-value">{{ analisis.velocidad_kg_dia|floatformat:"-2" }} kg/día</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Avance del contenedor</span>
+        <strong class="kpi-value">{{ analisis.avance_pct|floatformat:"-1" }}%</strong>
+        <span class="kpi-hint">
+          {{ analisis.total_kg|floatformat:"-2" }} de {{ analisis.kg_recibidos|floatformat:"-2" }} kg
+        </span>
+      </div>
+    </div>
+
+    {% if analisis.lider %}
+      <p class="analisis-lider">
+        Tipo de bolsa líder: <strong>{{ analisis.lider.nombre }}</strong>
+        — {{ analisis.lider.porcentaje|floatformat:"-1" }}% de las ventas
+        ({{ analisis.lider.kg|floatformat:"-2" }} kg ·
+        {{ analisis.lider.velocidad_kg_dia|floatformat:"-2" }} kg/día)
+      </p>
+    {% endif %}
+
+    <div class="table-wrap">
+      <table class="analisis-tabla">
+        <thead>
+          <tr>
+            <th scope="col">Tipo de bolsa</th>
+            <th scope="col">Kg vendidos</th>
+            <th scope="col">% del total</th>
+            <th scope="col">Kg/día</th>
+            <th scope="col" class="col-barra">Participación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in analisis.filas %}
+            <tr{% if fila.es_lider %} class="fila-lider"{% endif %}>
+              <td>
+                <span class="bolsa-nombre">{{ fila.nombre }}</span>
+                <span class="bolsa-codigo">{{ fila.codigo }}</span>
+              </td>
+              <td>{{ fila.kg|floatformat:"-2" }} kg</td>
+              <td>{{ fila.porcentaje|floatformat:"-1" }}%</td>
+              <td>{{ fila.velocidad_kg_dia|floatformat:"-2" }}</td>
+              <td class="col-barra">
+                <div class="barra-track">
+                  <div class="barra-fill" style="width: {{ fila.porcentaje_barra }}%;"></div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if analisis.primera_salida %}
+      <p class="muted analisis-nota">
+        Velocidad calculada desde la primera salida
+        ({{ analisis.primera_salida|date:"d/m/Y" }}) hasta hoy:
+        {{ analisis.dias }} día{{ analisis.dias|pluralize }}.
+      </p>
+    {% endif %}
+  </div>
+{% else %}
+  <p class="muted">Ventas del contenedor: sin ventas asignadas a este contenedor.</p>
+{% endif %}
