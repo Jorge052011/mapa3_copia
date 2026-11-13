@@ -65,10 +65,10 @@
       </table>
     </div>
 
-    {% if analisis.primera_salida %}
+    {% if analisis.fecha_inicio %}
       <p class="muted analisis-nota">
-        Velocidad calculada desde la primera salida
-        ({{ analisis.primera_salida|date:"d/m/Y" }}) hasta hoy:
+        Velocidad calculada desde el inicio del contenedor
+        ({{ analisis.fecha_inicio|date:"d/m/Y" }}) hasta hoy:
         {{ analisis.dias }} día{{ analisis.dias|pluralize }}.
       </p>
     {% endif %}
