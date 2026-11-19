@@ -15,6 +15,7 @@ from django.db.models import (
     ExpressionWrapper, Prefetch, OuterRef, Subquery,
 )
 from django.db.models.functions import Coalesce, TruncMonth, TruncDate
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -31,7 +32,10 @@ from .forms import (
     ClienteForm, VentaForm, VentaItemForm, IngresoMaterialForm,
     RecepcionMaterialForm, RecepcionLineaFormSet,
 )
-from .services import normalizar_telefono
+from .services import (
+    normalizar_telefono,
+    siguiente_numero_documento as calcular_siguiente_numero_documento,
+)
 from .services_trazabilidad import (
     asignar_bolsas,
     conciliacion_por_tipo,
@@ -289,8 +293,13 @@ def ventas_list(request):
 @login_required
 def venta_nueva(request):
     cliente_id = request.GET.get("cliente")
+    tipo_inicial = request.GET.get("tipo_documento", "").strip()
+    if tipo_inicial not in Venta.TipoDocumento.values:
+        tipo_inicial = Venta.TipoDocumento.BOLETA
+
     initial = {
-        "tipo_documento": Venta.TipoDocumento.BOLETA,
+        "tipo_documento": tipo_inicial,
+        "numero_documento": calcular_siguiente_numero_documento(tipo_inicial),
         "canal": Venta.Canal.INSTAGRAM,
     }
     if cliente_id:
@@ -315,6 +324,12 @@ def venta_nueva(request):
         form = VentaForm(initial=initial)
 
     return render(request, "crm/venta_form.html", {"form": form, "modo": "crear"})
+
+
+@login_required
+def venta_siguiente_numero(request):
+    tipo = request.GET.get("tipo", "").strip()
+    return JsonResponse({"numero": calcular_siguiente_numero_documento(tipo)})
 
 
 @login_required

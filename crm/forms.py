@@ -79,6 +79,19 @@ class VentaForm(forms.ModelForm):
                 "Debes ingresar el número de la factura o boleta."
             )
 
+        if tipo and numero:
+            qs = Venta.objects.filter(
+                tipo_documento=tipo,
+                numero_documento=numero,
+            )
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    "numero_documento",
+                    "Ya existe una venta con ese tipo y número de documento."
+                )
+
         # Limpia el número (por si venía con espacios)
         cleaned_data["numero_documento"] = numero
 

@@ -24,3 +24,36 @@
 </form>
 
 {% endblock %}
+
+{% block extra_js %}
+{% if modo != "editar" %}
+<script>
+(function () {
+  const tipo = document.getElementById("id_tipo_documento");
+  const numero = document.getElementById("id_numero_documento");
+  if (!tipo || !numero) return;
+
+  let autoValor = numero.value;
+  const url = "{% url 'crm:venta_siguiente_numero' %}";
+
+  tipo.addEventListener("change", async function () {
+    if (numero.value !== "" && numero.value !== autoValor) return;
+
+    const params = new URLSearchParams({ tipo: tipo.value });
+    try {
+      const resp = await fetch(url + "?" + params.toString(), {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      numero.value = data.numero || "";
+      autoValor = numero.value;
+    } catch (error) {
+      return;
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

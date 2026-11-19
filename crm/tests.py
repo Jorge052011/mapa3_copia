@@ -12,7 +12,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import resolve, reverse
 from django.utils import timezone
 
-from .forms import ClienteForm, IngresoMaterialForm, VentaItemForm
+from .forms import ClienteForm, IngresoMaterialForm, VentaForm, VentaItemForm
 from .models import (
     Cliente,
     CostoMensual,
@@ -28,7 +28,7 @@ from .models import (
     VentaItem,
     productos_vendibles_qs,
 )
-from .services import normalizar_telefono
+from .services import normalizar_telefono, siguiente_numero_documento
 from .services_inventario import (
     consumo_bolsas,
     inventario_bolsas_actual,
@@ -1407,6 +1407,153 @@ class Fase21EndurecimientoTestCase(TrazabilidadBaseTestCase):
         self.assertTrue(form_historico.is_valid(), form_historico.errors)
 
 
+class NumeroDocumentoTestCase(TestCase):
+    def setUp(self):
+        self.cliente = Cliente.objects.create(
+            nombre="Cliente documento",
+            telefono="900000001",
+        )
+        self.user = get_user_model().objects.create_user(
+            username="docuser",
+            password="clave-test",
+        )
+
+    def _venta(self, tipo, numero):
+        return Venta.objects.create(
+            cliente=self.cliente,
+            tipo_documento=tipo,
+            numero_documento=numero,
+        )
+
+    def _form_data(self, numero, tipo=Venta.TipoDocumento.BOLETA):
+        return {
+            "cliente": self.cliente.pk,
+            "fecha": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "tipo_documento": tipo,
+            "numero_documento": numero,
+            "canal": Venta.Canal.OTRO,
+            "kilos_total": "0",
+        }
+
+    def test_boleta_usa_ultimo_numero_por_id(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "28401")
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.BOLETA),
+            "30001",
+        )
+
+    def test_cada_tipo_usa_su_propio_correlativo(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+        self._venta(Venta.TipoDocumento.FACTURA, "25")
+
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.FACTURA),
+            "26",
+        )
+
+    def test_fallback_a_boleta_si_el_tipo_no_tiene_numeros(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.NOTA_CREDITO),
+            "30001",
+        )
+
+    def test_sin_historial_propone_uno(self):
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.BOLETA),
+            "1",
+        )
+
+    def test_ignora_valores_no_numericos(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "100")
+        self._venta(Venta.TipoDocumento.BOLETA, "27828-1")
+
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.BOLETA),
+            "101",
+        )
+
+    def test_sin_doc_no_propone_numero(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        self.assertEqual(
+            siguiente_numero_documento(Venta.TipoDocumento.SIN_DOC),
+            "",
+        )
+
+    def test_nueva_venta_precarga_numero(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("crm:venta_nueva"))
+
+        self.assertEqual(
+            response.context["form"].initial["numero_documento"],
+            "30001",
+        )
+
+    def test_endpoint_devuelve_siguiente_numero(self):
+        self._venta(Venta.TipoDocumento.FACTURA, "25")
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("crm:venta_siguiente_numero"),
+            {"tipo": "factura"},
+        )
+
+        self.assertEqual(response.json(), {"numero": "26"})
+
+    def test_endpoint_tipo_invalido_devuelve_vacio(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("crm:venta_siguiente_numero"),
+            {"tipo": "otro"},
+        )
+
+        self.assertEqual(response.json(), {"numero": ""})
+
+    def test_edicion_conserva_el_numero_existente(self):
+        venta = self._venta(Venta.TipoDocumento.BOLETA, "30000")
+        self._venta(Venta.TipoDocumento.BOLETA, "30001")
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("crm:venta_editar", args=[venta.id])
+        )
+
+        self.assertEqual(
+            response.context["form"].initial["numero_documento"],
+            "30000",
+        )
+
+    def test_numero_duplicado_por_tipo_es_invalido(self):
+        self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        form = VentaForm(data=self._form_data("30000"))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("numero_documento", form.errors)
+
+    def test_edicion_permite_corregir_numero(self):
+        venta = self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        form = VentaForm(data=self._form_data("30500"), instance=venta)
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        venta.refresh_from_db()
+        self.assertEqual(venta.numero_documento, "30500")
+
+    def test_edicion_con_el_mismo_numero_es_valida(self):
+        venta = self._venta(Venta.TipoDocumento.BOLETA, "30000")
+
+        form = VentaForm(data=self._form_data("30000"), instance=venta)
+
+        self.assertTrue(form.is_valid(), form.errors)
 class AnalisisVentasContenedorTestCase(TrazabilidadBaseTestCase):
     def setUp(self):
         super().setUp()

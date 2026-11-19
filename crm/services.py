@@ -32,6 +32,41 @@ def normalizar_telefono(valor):
     return f"+{digitos}" if tenia_mas else digitos
 
 
+def _ultimo_numero_numerico(tipo_documento, limite=50):
+    valores = (
+        Venta.objects.filter(tipo_documento=tipo_documento)
+        .exclude(numero_documento="")
+        .order_by("-id")
+        .values_list("numero_documento", flat=True)[:limite]
+    )
+    for valor in valores:
+        valor = (valor or "").strip()
+        if valor.isdigit():
+            return valor
+    return None
+
+
+def siguiente_numero_documento(tipo_documento):
+    """
+    Devuelve el siguiente número sugerido para un tipo de documento.
+
+    Usa el último número numérico por id del mismo tipo. Si el tipo no tiene
+    historial numérico, cae al último número de boleta. Convierte el valor a
+    entero y suma uno, ignorando formatos no numéricos como "27828-1".
+    """
+    if tipo_documento not in Venta.TipoDocumento.values:
+        return ""
+    if tipo_documento == Venta.TipoDocumento.SIN_DOC:
+        return ""
+
+    base = _ultimo_numero_numerico(tipo_documento)
+    if base is None and tipo_documento != Venta.TipoDocumento.BOLETA:
+        base = _ultimo_numero_numerico(Venta.TipoDocumento.BOLETA)
+    if base is None:
+        return "1"
+    return str(int(base) + 1)
+
+
 def segmentar_cliente(c):
     """
     Segmenta clientes según RFM (Recency, Frequency, Monetary).
