@@ -564,3 +564,104 @@ RESPONSIVE
     justify-content: flex-start;
   }
 }
+
+/* =========================
+ANÁLISIS DE VENTAS POR CONTENEDOR
+========================= */
+.ventas-analisis {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.analisis-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: #343a40;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6c757d;
+}
+
+.kpi-value {
+  font-size: 1.1rem;
+  color: #212529;
+}
+
+.kpi-hint {
+  font-size: 0.72rem;
+  color: #6c757d;
+}
+
+.analisis-lider {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #eef4ff;
+  border-left: 4px solid #0d6efd;
+  border-radius: 6px;
+}
+
+.analisis-tabla th,
+.analisis-tabla td {
+  vertical-align: middle;
+}
+
+.bolsa-nombre {
+  display: block;
+  font-weight: 600;
+}
+
+.bolsa-codigo {
+  display: block;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.fila-lider {
+  background: #f4f8ff;
+}
+
+.col-barra {
+  min-width: 140px;
+}
+
+.barra-track {
+  min-width: 120px;
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barra-fill {
+  height: 100%;
+  background: #0d6efd;
+  border-radius: 999px;
+}
+
+.analisis-nota {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+}

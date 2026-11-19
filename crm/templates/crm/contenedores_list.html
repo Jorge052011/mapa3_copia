@@ -58,6 +58,8 @@
         </tfoot>
       </table>
     </div>
+
+    {% include "crm/_analisis_contenedor.html" with analisis=resumen.analisis %}
   </div>
 {% empty %}
   <p class="muted">Todavía no hay importaciones con ingresos operativos.</p>
