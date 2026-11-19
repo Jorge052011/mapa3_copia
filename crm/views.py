@@ -289,7 +289,10 @@ def ventas_list(request):
 @login_required
 def venta_nueva(request):
     cliente_id = request.GET.get("cliente")
-    initial = {}
+    initial = {
+        "tipo_documento": Venta.TipoDocumento.BOLETA,
+        "canal": Venta.Canal.INSTAGRAM,
+    }
     if cliente_id:
         try:
             initial["cliente"] = Cliente.objects.get(id=int(cliente_id))
